@@ -1,11 +1,15 @@
 """Agent Harness 框架 —— 类 Claude Code 的通用 Agent 载体。"""
 
 from .loop import agent_loop
+from .permissions import Decision, PermissionManager, PermissionRule
 from .providers import OpenAICompatibleProvider, ToolCall
 from .tools import Tool, ToolRegistry, default_registry
 
 __all__ = [
     "agent_loop",
+    "Decision",
+    "PermissionManager",
+    "PermissionRule",
     "OpenAICompatibleProvider",
     "ToolCall",
     "Tool",

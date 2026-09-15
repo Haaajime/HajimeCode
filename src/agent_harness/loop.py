@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from .permissions import PermissionManager
 from .providers import ModelProvider
 from .tools import ToolRegistry
 
@@ -20,6 +21,7 @@ def agent_loop(
     provider: ModelProvider,
     registry: ToolRegistry,
     max_steps: int = 10,
+    permissions: PermissionManager | None = None,
 ) -> tuple[list[dict[str, Any]], str | None]:
     messages: list[dict[str, Any]] = [
         {"role": "system", "content": system},
@@ -52,6 +54,13 @@ def agent_loop(
                 args = json.loads(tc.arguments) if tc.arguments else {}
             except json.JSONDecodeError:
                 args = {}
+            if permissions is not None:
+                allowed, denial = permissions.resolve(tc.name, args)
+                if not allowed:
+                    messages.append(
+                        {"role": "tool", "tool_call_id": tc.id, "content": denial}
+                    )
+                    continue
             result = registry.dispatch(tc.name, args)
             messages.append(
                 {"role": "tool", "tool_call_id": tc.id, "content": result}
