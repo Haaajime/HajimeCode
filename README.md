@@ -23,7 +23,9 @@ uv sync
 cp .env.example .env      # 填入 DEEPSEEK_API_KEY 后运行
 uv run python -m pytest   # 全部 mock 单测,不耗 API(用 python -m,避免全局 pytest 被 PATH 抢先)
 # 真实跑一个带工具的任务(会消耗极少 token)
-uv run hajimecode "请用 add 工具计算 42+99 的和"
+uv run python -m agent_harness "请用 add 工具计算 42+99 的和"
+# 让 Agent 用文件工具查看项目源码
+uv run python -m agent_harness "用 glob/read 看看 src/agent_harness 下有哪些文件并简述"
 ```
 
 ## 目录结构

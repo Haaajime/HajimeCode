@@ -23,6 +23,12 @@ class Tool:
     func: Callable[..., str]
 
     def schema(self) -> ToolSchema:
+        # 属性内部的 "required" 仅是本地标记,用于提取顶层 required 列表;
+        # 发送给上游(DeepSeek/OpenAI)时必须剥离,否则其严格 schema 校验会拒绝。
+        properties = {
+            k: {kk: vv for kk, vv in v.items() if kk != "required"}
+            for k, v in self.parameters.items()
+        }
         return {
             "type": "function",
             "function": {
@@ -30,7 +36,7 @@ class Tool:
                 "description": self.description,
                 "parameters": {
                     "type": "object",
-                    "properties": self.parameters,
+                    "properties": properties,
                     "required": [
                         k for k, v in self.parameters.items() if v.get("required")
                     ],
