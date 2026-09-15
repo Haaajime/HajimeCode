@@ -1,0 +1,25 @@
+[project]
+name = "agent-harness"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Haaajime", email = "Haaajime@users.noreply.github.com" }
+]
+requires-python = ">=3.10"
+dependencies = [
+    "openai>=3.14.0",
+    "python-dotenv>=1.2.3",
+]
+
+[project.scripts]
+agent-harness = "agent_harness.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.9.27,<0.10.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
