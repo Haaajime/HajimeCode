@@ -4,6 +4,7 @@ from .compactor import ContextManager
 from .file_tools import build_file_tools
 from .hooks import Hooks, HookAction, HookResult
 from .loop import agent_loop
+from .memory import Memory, MemoryStore, build_memory_system, remember_tool
 from .permissions import Decision, PermissionManager, PermissionRule
 from .providers import OpenAICompatibleProvider, ToolCall
 from .todos import TodoList, TodoStatus, build_todo_system
@@ -12,15 +13,19 @@ from .tools import Tool, ToolRegistry, default_registry
 __all__ = [
     "agent_loop",
     "build_file_tools",
+    "build_memory_system",
     "build_todo_system",
     "ContextManager",
     "Decision",
     "HookAction",
     "Hooks",
     "HookResult",
+    "Memory",
+    "MemoryStore",
     "OpenAICompatibleProvider",
     "PermissionManager",
     "PermissionRule",
+    "remember_tool",
     "ToolCall",
     "TodoList",
     "TodoStatus",
