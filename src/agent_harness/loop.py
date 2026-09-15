@@ -8,6 +8,13 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from .hooks import (
+    HookAction,
+    Hooks,
+    run_post_tool_use,
+    run_pre_tool_use,
+    run_pre_turn,
+)
 from .permissions import PermissionManager
 from .providers import ModelProvider
 from .tools import ToolRegistry
@@ -22,6 +29,7 @@ def agent_loop(
     registry: ToolRegistry,
     max_steps: int = 10,
     permissions: PermissionManager | None = None,
+    hooks: Hooks | None = None,
 ) -> tuple[list[dict[str, Any]], str | None]:
     messages: list[dict[str, Any]] = [
         {"role": "system", "content": system},
@@ -30,6 +38,8 @@ def agent_loop(
     last_text: str | None = None
 
     for _ in range(max_steps):
+        if hooks is not None:
+            run_pre_turn(hooks, messages)
         tools = registry.schemas()
         reply = provider.complete(messages, tools) if tools else provider.complete(messages, [])
 
@@ -61,7 +71,17 @@ def agent_loop(
                         {"role": "tool", "tool_call_id": tc.id, "content": denial}
                     )
                     continue
+            if hooks is not None:
+                hook_result = run_pre_tool_use(hooks, tc.name, args)
+                if hook_result is not None and hook_result.action is HookAction.DENY:
+                    msgs = hook_result.message or f"[hook] 调用 {tc.name} 被拦截"
+                    messages.append(
+                        {"role": "tool", "tool_call_id": tc.id, "content": msgs}
+                    )
+                    continue
             result = registry.dispatch(tc.name, args)
+            if hooks is not None:
+                run_post_tool_use(hooks, tc.name, args, result)
             messages.append(
                 {"role": "tool", "tool_call_id": tc.id, "content": result}
             )
