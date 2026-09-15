@@ -7,15 +7,17 @@
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 
 from .config import get_settings
+from .file_tools import build_file_tools
 from .loop import agent_loop
 from .providers import OpenAICompatibleProvider
 from .tools import default_registry
 
 SYSTEM = (
     "你是运行在 Agent 框架中的助手。你可以调用给定的工具完成任务。"
-    "当需要计算或查询时,应使用对应工具,而不是凭记忆作答。"
+    "当需要计算、查询或访问工作区文件时,应使用对应工具,而不是凭记忆作答。"
 )
 
 
@@ -26,6 +28,8 @@ def main() -> int:
     prompt = " ".join(sys.argv[1:])
 
     registry = default_registry()
+    for t in build_file_tools(Path.cwd()):
+        registry.register(t)
     provider = OpenAICompatibleProvider(get_settings())
     _, final = agent_loop(SYSTEM, prompt, provider, registry)
 
