@@ -18,12 +18,12 @@
 ## 快速开始
 
 ```bash
-cd agent-harness
+cd HajimeCode
 uv sync
 cp .env.example .env      # 填入 DEEPSEEK_API_KEY 后运行
-uv run pytest -q          # 全部 mock 单测,不耗 API
+uv run python -m pytest   # 全部 mock 单测,不耗 API(用 python -m,避免全局 pytest 被 PATH 抢先)
 # 真实跑一个带工具的任务(会消耗极少 token)
-uv run agent-harness "请用 add 工具计算 42+99 的和"
+uv run hajimecode "请用 add 工具计算 42+99 的和"
 ```
 
 ## 目录结构

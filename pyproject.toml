@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [project.scripts]
-agent-harness = "agent_harness.cli:main"
+hajimecode = "agent_harness.cli:main"
 
 [build-system]
 requires = ["uv_build>=0.9.27,<0.10.0"]

@@ -1,8 +1,8 @@
 """命令行运行入口:让 Agent 带上内置工具回答一个提示词。
 
 用法:
-    agent-harness "计算 3+5 的结果"
-    agent-harness "请用 add 工具计算 42+99 的和"
+    hajimecode "计算 3+5 的结果"
+    hajimecode "请用 add 工具计算 42+99 的和"
 """
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ SYSTEM = (
 
 def main() -> int:
     if len(sys.argv) < 2:
-        print("用法: agent-harness \"你的提示词\"")
+        print("用法: hajimecode \"你的提示词\"")
         return 2
     prompt = " ".join(sys.argv[1:])
 

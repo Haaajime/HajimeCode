@@ -30,7 +30,7 @@ def get_settings(provider: str = "deepseek") -> Settings:
     api_key = os.environ.get("DEEPSEEK_API_KEY", "").strip()
     if not api_key:
         raise RuntimeError(
-            "未找到 DEEPSEEK_API_KEY,请在 agent-harness/.env 中填入后重试。"
+            "未找到 DEEPSEEK_API_KEY,请在 HajimeCode/.env 中填入后重试。"
         )
     return Settings(
         api_key=api_key,
