@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 
 from ...budget import UsageTracker
 from ...config import Pricing, Settings
+from ...models import structured_output
 from ...prompts import JUDGE_SYSTEM
 from ..state import AgentState, NodeFn, empty_budget
 
@@ -30,7 +31,7 @@ class Judgment(BaseModel):
 
 def make_llm_judge(model: BaseChatModel) -> Runnable[Any, Any]:
     prompt = ChatPromptTemplate.from_messages([("system", JUDGE_SYSTEM), ("human", "{brief}")])
-    return prompt | model.with_structured_output(Judgment)
+    return prompt | structured_output(model, Judgment)
 
 
 def _text_of(message: AnyMessage) -> str:

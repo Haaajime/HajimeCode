@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 
 from ...budget import UsageTracker
 from ...config import Pricing
+from ...models import structured_output
 from ...prompts import PLAN_SYSTEM
 from ..state import AgentState, NodeFn, Todo
 
@@ -27,7 +28,7 @@ class PlanResult(BaseModel):
 
 def make_llm_planner(model: BaseChatModel) -> Runnable[Any, Any]:
     prompt = ChatPromptTemplate.from_messages([("system", PLAN_SYSTEM), ("human", "{task}")])
-    return prompt | model.with_structured_output(PlanResult)
+    return prompt | structured_output(model, PlanResult)
 
 
 def make_plan_node(planner: Runnable[Any, Any], pricing: Pricing) -> NodeFn:
