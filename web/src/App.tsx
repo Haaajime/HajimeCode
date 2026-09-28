@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import {
+  REQUIRED_API_VERSION,
   createTask,
   getHealth,
   listModels,
@@ -28,6 +29,10 @@ export default function App() {
   const [defaultModel, setDefaultModel] = useState('')
   const [hasApiKey, setHasApiKey] = useState(false)
   const [presets, setPresets] = useState<WorkspacePreset[]>([])
+  // 启动期（模型列表 / 工作区预设）的失败必须让用户看见 ——
+  // 静默吞掉只会得到一个"空白下拉框"，用户完全无从判断哪里出了问题。
+  const [bootError, setBootError] = useState<string | null>(null)
+  const [serverOutdated, setServerOutdated] = useState(false)
 
   // 记录"当前真正订阅的任务"，避免切换任务时旧连接的事件写进新视图
   const activeId = useRef<string | null>(null)
@@ -41,20 +46,44 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    void getHealth()
-      .then((health) => setModel(health.model))
-      .catch(() => setModel(''))
-    void listModels()
-      .then((payload) => {
+    const note = (label: string, exc: unknown) => {
+      const message = exc instanceof Error ? exc.message : String(exc)
+      setBootError((previous) => previous ?? `${label}：${message}`)
+    }
+
+    void (async () => {
+      try {
+        const health = await getHealth()
+        setModel(health.model)
+        if (
+          typeof health.api_version !== 'number' ||
+          health.api_version < REQUIRED_API_VERSION
+        ) {
+          setServerOutdated(true)
+        }
+      } catch (exc) {
+        setModel('')
+        note('无法连接服务端', exc)
+      }
+
+      try {
+        const payload = await listModels()
         setModels(payload.models)
         setDefaultModel(payload.default)
         setHasApiKey(payload.has_api_key)
-      })
-      .catch(() => setModels([]))
-    void listPresets()
-      .then((payload) => setPresets(payload.workspaces))
-      .catch(() => setPresets([]))
-    void refreshTasks()
+      } catch (exc) {
+        note('模型列表加载失败', exc)
+      }
+
+      try {
+        const payload = await listPresets()
+        setPresets(payload.workspaces)
+      } catch (exc) {
+        note('工作区预设加载失败', exc)
+      }
+
+      void refreshTasks()
+    })()
   }, [refreshTasks])
 
   useEffect(() => {
@@ -123,6 +152,23 @@ export default function App() {
           )}
         </div>
       </header>
+
+      {serverOutdated && (
+        <div className="mb-3 rounded-lg border border-amber-800 bg-amber-950/50 px-3 py-2 text-xs text-amber-200">
+          <strong className="font-medium">服务端接口过旧。</strong>
+          当前页面需要更新的接口（如 <code className="mono">/api/models</code>、
+          <code className="mono">/api/fs/dirs</code>），但服务端没有提供 —— 大概率是旧的
+          <code className="mono"> hajime2code-web </code>
+          进程还占着端口。请结束它并重启（
+          <code className="mono">uv run hajime2code-web</code>）后刷新本页。
+        </div>
+      )}
+
+      {bootError && (
+        <div className="mb-3 rounded-lg bg-rose-950/60 px-3 py-2 text-xs text-rose-300">
+          {bootError}
+        </div>
+      )}
 
       {error && (
         <div className="mb-3 rounded-lg bg-rose-950/60 px-3 py-2 text-xs text-rose-300">{error}</div>

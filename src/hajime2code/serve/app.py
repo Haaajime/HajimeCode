@@ -29,6 +29,12 @@ WEB_DIST = Path(__file__).resolve().parents[3] / "web" / "dist"
 
 MAX_BROWSE_ENTRIES = 200
 
+#: 后端接口版本。前端会拿它和自己期望的版本比对 ——
+#: 缺了这道握手，旧服务进程会把**新前端**发出去（StaticFiles 每次请求都从磁盘读），
+#: 表现成"模型下拉空白 + 浏览 404"，症状看着莫名其妙。
+#: 每次**新增/变更**前端依赖的接口时都要 +1。
+API_VERSION = 2
+
 #: 目录选择器里的快捷预设：样例仓库里几个有代表性的子目录
 #: （深嵌套 / 非 ASCII 名 / 含空格名 / 有真实代码）。
 SAMPLE_SUBDIRS: tuple[tuple[str, str, str], ...] = (
@@ -118,8 +124,12 @@ def create_app(
         return target
 
     @app.get("/api/health")
-    async def health() -> dict[str, str]:
-        return {"status": "ok", "model": resolved_settings.model_name}
+    async def health() -> dict[str, object]:
+        return {
+            "status": "ok",
+            "model": resolved_settings.model_name,
+            "api_version": API_VERSION,
+        }
 
     @app.get("/api/models")
     async def list_models() -> dict[str, object]:

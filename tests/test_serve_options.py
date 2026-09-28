@@ -16,7 +16,7 @@ import httpx
 import pytest
 
 from hajime2code.config import Settings
-from hajime2code.serve.app import create_app
+from hajime2code.serve.app import API_VERSION, create_app
 from hajime2code.serve.stub import STUB_MODEL_ID, _keyword
 
 
@@ -59,6 +59,14 @@ def _assistant_text(events: list[dict[str, Any]]) -> str:
 
 
 # ---------------------------------------------------------------- 模型列表
+
+
+async def test_health_exposes_api_version(tmp_path: Path) -> None:
+    """版本握手：前端靠它判断服务端是不是旧进程，缺了就会变成莫名其妙的空白/404。"""
+    async with _client(_settings(tmp_path)) as client:
+        payload = (await client.get("/api/health")).json()
+    assert payload["api_version"] == API_VERSION
+    assert isinstance(payload["api_version"], int)
 
 
 async def test_models_lists_stub_first_and_flags_key_availability(tmp_path: Path) -> None:

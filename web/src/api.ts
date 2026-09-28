@@ -1,5 +1,14 @@
 /** 后端契约。字段与 `src/hajime2code/serve/events.py` / `store.py` 保持一致。 */
 
+/**
+ * 前端依赖的后端接口版本。必须与 `serve/app.py` 的 `API_VERSION` 对齐。
+ *
+ * 为什么要有这道握手：静态托管是**每次请求都从磁盘读文件**的，所以一个**旧的**服务进程
+ * 照样会把**新的**前端发出去，于是表现成"模型下拉空白 + 浏览 404"这种莫名其妙的症状。
+ * 有这个版本号，前端就能明确说出"服务端过旧，请重启"。
+ */
+export const REQUIRED_API_VERSION = 2
+
 export interface Budget {
   steps: number
   llm_calls: number
@@ -94,7 +103,22 @@ export const EVENT_TYPES = [
 
 async function json<T>(response: Response): Promise<T> {
   if (!response.ok) {
-    const detail = await response.json().catch(() => ({ detail: response.statusText }))
+    const detail = (await response.json().catch(() => null)) as { detail?: string } | null
+    // API 路径上的 404 几乎总是"服务端没有这个接口"，而不是"资源找不到" ——
+    // 直接说清楚，否则用户只会看到一句莫名其妙的 Not Found。
+    if (response.status === 404) {
+      let path = ''
+      try {
+        path = new URL(response.url).pathname
+      } catch {
+        path = ''
+      }
+      if (path.startsWith('/api/')) {
+        throw new Error(
+          `服务端没有接口 ${path} —— 大概是在跑旧版本，请重启 hajime2code-web 后刷新页面`,
+        )
+      }
+    }
     throw new Error(detail?.detail ?? `HTTP ${response.status}`)
   }
   return (await response.json()) as T
@@ -141,8 +165,12 @@ export async function getTask(id: string): Promise<TaskSummary> {
   return json<TaskSummary>(await fetch(`/api/tasks/${id}`))
 }
 
-export async function getHealth(): Promise<{ status: string; model: string }> {
-  return json<{ status: string; model: string }>(await fetch('/api/health'))
+export async function getHealth(): Promise<{
+  status: string
+  model: string
+  api_version: number
+}> {
+  return json(await fetch('/api/health'))
 }
 
 /**
