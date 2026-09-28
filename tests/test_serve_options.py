@@ -100,6 +100,20 @@ async def test_custom_model_choices_are_exposed(tmp_path: Path) -> None:
     assert {"test-model", "alpha", "beta"} <= ids
 
 
+async def test_default_model_falls_back_to_configured_model(tmp_path: Path) -> None:
+    async with _client(_settings(tmp_path)) as client:
+        payload = (await client.get("/api/models")).json()
+    assert payload["default"] == "test-model"
+
+
+async def test_default_model_can_be_pinned_to_stub(tmp_path: Path) -> None:
+    """把初始选中设成无模型模式 —— 避免"手一抖就产生真实费用"。"""
+    settings = _settings(tmp_path, default_model=STUB_MODEL_ID)
+    async with _client(settings) as client:
+        payload = (await client.get("/api/models")).json()
+    assert payload["default"] == STUB_MODEL_ID
+
+
 # ---------------------------------------------------------------- 预设
 
 

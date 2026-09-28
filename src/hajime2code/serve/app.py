@@ -148,7 +148,7 @@ def create_app(
             for name in resolved_settings.available_models
         )
         return {
-            "default": resolved_settings.model_name,
+            "default": resolved_settings.default_model or resolved_settings.model_name,
             "stub_id": STUB_MODEL_ID,
             "has_api_key": has_key,
             "models": entries,

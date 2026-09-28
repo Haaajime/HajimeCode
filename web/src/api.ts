@@ -129,9 +129,14 @@ export async function createTask(
   workspace?: string,
   model?: string,
 ): Promise<string> {
-  const body: Record<string, string> = { task }
+  // 绝不静默省略 model：服务端会回退到默认模型并**产生真实费用**，
+  // 而界面可能显示的是「无模型模式」。这种"说一套做一套"比直接报错糟糕得多。
+  // （真实事故：下拉框只显示了第一个选项、state 却是空串，于是显示无模型模式却跑了真实模型。）
+  if (!model) {
+    throw new Error('内部错误：未指定模型，已阻止提交（否则会静默回退到服务端默认模型并产生费用）')
+  }
+  const body: Record<string, string> = { task, model }
   if (workspace) body.workspace = workspace
-  if (model) body.model = model
   const response = await fetch('/api/tasks', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

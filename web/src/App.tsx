@@ -146,8 +146,11 @@ export default function App() {
           />
           <span className="text-slate-400">{live ? '执行中' : '空闲'}</span>
           {model && (
-            <span className="mono rounded border border-slate-700 px-2 py-0.5 text-slate-400">
-              {model}
+            <span
+              className="mono rounded border border-slate-700 px-2 py-0.5 text-slate-400"
+              title="服务端配置的默认模型；每次任务实际用哪个模型，由左侧「模型」下拉决定"
+            >
+              服务端默认 {model}
             </span>
           )}
         </div>

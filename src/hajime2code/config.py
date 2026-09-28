@@ -86,6 +86,11 @@ class Settings(BaseSettings):
         default="deepseek-chat,deepseek-reasoner",
         validation_alias=AliasChoices("H2C_MODEL_CHOICES", "MODEL_CHOICES"),
     )
+    # 前端**初始选中**的模型。留空 = 用 model_name。
+    # 想避免"手一抖就产生真实费用"，设成 `H2C_DEFAULT_MODEL=stub` 即可默认走无模型模式。
+    default_model: str = Field(
+        default="", validation_alias=AliasChoices("H2C_DEFAULT_MODEL", "DEFAULT_MODEL")
+    )
     # 目录选择器的浏览边界。前端只能在这个根之下浏览。
     #
     # 注意区分：**工作目录本身不受此限制** —— 请求里直接给绝对路径可以指向任意存在的目录，
