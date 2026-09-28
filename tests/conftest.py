@@ -12,6 +12,10 @@ import pytest
 from hajime2code.config import Settings
 from hajime2code.workspace import Workspace
 
+# tests/fixtures/ 下是**被测数据**（模拟真实仓库，里面自然也有 tests/test_*.py）。
+# 必须拦住 pytest 的自动收集，否则会把样例仓库的测试当成本项目测试来跑。
+collect_ignore_glob = ["fixtures/*"]
+
 
 @pytest.fixture
 def settings() -> Settings:

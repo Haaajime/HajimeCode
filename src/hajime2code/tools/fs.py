@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 from langchain_core.tools import BaseTool, tool
 
@@ -17,6 +18,7 @@ from ..workspace import Workspace, WorkspaceError
 
 MAX_LIST = 200
 MAX_READ_CHARS = 60_000
+BINARY_SNIFF_BYTES = 4096
 
 
 def _err(exc: Exception) -> str:
@@ -41,7 +43,11 @@ def build_fs_tools(workspace: Workspace) -> list[BaseTool]:
                 return f"[tool_error] 不是可读文件：{path}"
             if offset < 0:
                 return "[tool_error] offset 不能为负"
-            lines = target.read_text(encoding="utf-8", errors="replace").splitlines(keepends=True)
+            raw = target.read_bytes()
+            # 二进制文件按文本读会得到大片乱码，既污染上下文又看不出问题，故直接说明。
+            if b"\x00" in raw[:BINARY_SNIFF_BYTES]:
+                return f"(已跳过二进制文件 {ws.relative(target)}：共 {len(raw)} 字节，非文本内容)"
+            lines = raw.decode("utf-8", errors="replace").splitlines(keepends=True)
             end = len(lines) if limit is None else min(len(lines), offset + limit)
             chunk = "".join(lines[offset:end])
             truncated = len(chunk) > MAX_READ_CHARS
@@ -54,7 +60,10 @@ def build_fs_tools(workspace: Workspace) -> list[BaseTool]:
 
     @tool
     def list_dir(path: str = ".") -> str:
-        """列出工作区内某目录的下一层内容（不递归）；目录以 / 结尾。
+        """列出工作区内某目录的下一层内容（**不递归**）；目录以 / 结尾。
+
+        若条目数超过上限，表头会显式标注"仅显示前 N 项"，**不要据此断定目录只有这些内容** ——
+        此时应改用 glob 或逐个进入子目录。
 
         Args:
             path: 目录路径，默认工作区根目录。
@@ -68,29 +77,53 @@ def build_fs_tools(workspace: Workspace) -> list[BaseTool]:
                 key=lambda e: e.name,
             )
             rows = [e.name + "/" if e.is_dir() else e.name for e in entries]
-            head = f"(目录 {ws.relative(target)} 共 {len(rows)} 项)"
-            return head + "\n" + "\n".join(rows[:MAX_LIST])
+            shown = rows[:MAX_LIST]
+            head = f"(目录 {ws.relative(target)} 共 {len(rows)} 项"
+            if len(rows) > len(shown):
+                head += f"｜**仅显示前 {len(shown)} 项**，另有 {len(rows) - len(shown)} 项未列出"
+            head += ")"
+            return head + "\n" + "\n".join(shown)
         except (WorkspaceError, OSError) as exc:
             return _err(exc)
 
     @tool
     def glob(pattern: str, max_results: int = MAX_LIST) -> str:
-        """按 glob 通配符列出工作区内的路径（支持 ** 递归），返回 JSON 数组。
+        """按 glob 通配符列出工作区内的路径（支持 ** 递归），返回 JSON **对象**。
+
+        返回形如 ``{"pattern", "returned", "total_matched", "truncated", "paths", "hint"?}``。
+        **务必检查 ``truncated``**：为 true 时 ``paths`` 只是匹配结果的一部分，
+        绝不能据此断定文件总数；请提高 ``max_results``，或用更精确的 pattern 缩小范围。
 
         Args:
             pattern: 通配符，如 'src/**/*.py'。
-            max_results: 返回条数上限。
+            max_results: 返回条数上限，默认 200。
         """
         try:
-            matches: list[str] = []
+            if max_results <= 0:
+                return "[tool_error] max_results 必须为正整数"
+            matched: list[str] = []
             for candidate in sorted(ws.root.glob(pattern)):
                 if ws.is_ignored(candidate):
                     continue
                 rel = ws.relative(candidate)
-                matches.append(rel + "/" if candidate.is_dir() else rel)
-                if len(matches) >= max_results:
-                    break
-            return json.dumps(matches, ensure_ascii=False)
+                matched.append(rel + "/" if candidate.is_dir() else rel)
+
+            shown = matched[:max_results]
+            truncated = len(matched) > len(shown)
+            payload: dict[str, Any] = {
+                "pattern": pattern,
+                "returned": len(shown),
+                "total_matched": len(matched),
+                "truncated": truncated,
+                "paths": shown,
+            }
+            if truncated:
+                payload["hint"] = (
+                    f"结果被截断：匹配共 {len(matched)} 条，"
+                    f"仅返回前 {len(shown)} 条（按路径排序）。"
+                    f"请提高 max_results，或改用更精确的 pattern，不要据此断定文件总数。"
+                )
+            return json.dumps(payload, ensure_ascii=False)
         except (WorkspaceError, OSError, ValueError) as exc:
             return _err(exc)
 

@@ -37,9 +37,11 @@ def test_list_dir(workspace: Workspace) -> None:
     assert "README.md" in out
 
 
-def test_glob_returns_json(workspace: Workspace) -> None:
-    out = _tools(workspace)["glob"].invoke({"pattern": "**/*.py"})
-    assert json.loads(out) == ["pkg/mod.py"]
+def test_glob_returns_json_object_with_metadata(workspace: Workspace) -> None:
+    payload = json.loads(_tools(workspace)["glob"].invoke({"pattern": "**/*.py"}))
+    assert payload["paths"] == ["pkg/mod.py"]
+    assert payload["total_matched"] == 1
+    assert payload["truncated"] is False
 
 
 def test_write_creates_file_and_parents(workspace: Workspace) -> None:

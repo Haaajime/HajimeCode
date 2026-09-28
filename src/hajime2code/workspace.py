@@ -49,6 +49,17 @@ class Workspace:
     def relative(self, path: Path) -> str:
         return path.relative_to(self.root).as_posix()
 
-    @staticmethod
-    def is_ignored(path: Path) -> bool:
-        return any(part in IGNORED_DIR_NAMES for part in path.parts)
+    def is_ignored(self, path: Path) -> bool:
+        """路径是否落在被忽略的目录内。
+
+        ⚠️ 只比较**工作区内的相对部分**。早先的实现直接看 ``path.parts``（绝对路径），
+        于是工作区自身路径里只要出现 ``build`` / ``dist`` / ``node_modules`` 之类的名字
+        （例如工作区在 ``~/build/myproj``），**整个工作区都会被判为忽略** ——
+        ``glob`` 返回 ``[]``、``list_dir`` 返回 0 项，而文件明明存在、``read`` 也读得到。
+        这种"静默全瞎"最难排查，故在此修正并保留说明。
+        """
+        try:
+            relative = path.relative_to(self.root)
+        except ValueError:
+            return False  # 工作区之外：交给 resolve 报越界，此处不做忽略判定
+        return any(part in IGNORED_DIR_NAMES for part in relative.parts)
