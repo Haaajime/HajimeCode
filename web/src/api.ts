@@ -36,6 +36,48 @@ export interface TaskEvent {
   data: Record<string, unknown>
 }
 
+export interface ModelOption {
+  id: string
+  label: string
+  kind: 'stub' | 'llm'
+  available: boolean
+}
+
+export interface ModelList {
+  default: string
+  stub_id: string
+  has_api_key: boolean
+  models: ModelOption[]
+}
+
+export interface WorkspacePreset {
+  key: string
+  label: string
+  path: string
+}
+
+export interface Presets {
+  browse_root: string
+  project_root: string
+  workspaces: WorkspacePreset[]
+}
+
+export interface DirEntry {
+  name: string
+  path: string
+}
+
+export interface BrowseResult {
+  browse_root: string
+  path: string
+  relative: string
+  parent: string | null
+  dirs: DirEntry[]
+  truncated: boolean
+  hidden_count: number
+  markers: string[]
+}
+
 export const EVENT_TYPES = [
   'task.created',
   'node.started',
@@ -58,9 +100,14 @@ async function json<T>(response: Response): Promise<T> {
   return (await response.json()) as T
 }
 
-export async function createTask(task: string, workspace?: string): Promise<string> {
+export async function createTask(
+  task: string,
+  workspace?: string,
+  model?: string,
+): Promise<string> {
   const body: Record<string, string> = { task }
   if (workspace) body.workspace = workspace
+  if (model) body.model = model
   const response = await fetch('/api/tasks', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -68,6 +115,22 @@ export async function createTask(task: string, workspace?: string): Promise<stri
   })
   const payload = await json<{ task_id: string }>(response)
   return payload.task_id
+}
+
+/** 可选模型：无模型模式 + 服务端配置的候选。 */
+export async function listModels(): Promise<ModelList> {
+  return json<ModelList>(await fetch('/api/models'))
+}
+
+/** 目录选择器需要的预设与浏览范围。 */
+export async function listPresets(): Promise<Presets> {
+  return json<Presets>(await fetch('/api/presets'))
+}
+
+/** 逐层浏览目录（服务端限制在 browse_root 之内）。 */
+export async function browseDirs(path?: string): Promise<BrowseResult> {
+  const query = path ? `?path=${encodeURIComponent(path)}` : ''
+  return json<BrowseResult>(await fetch(`/api/fs/dirs${query}`))
 }
 
 export async function listTasks(): Promise<TaskSummary[]> {

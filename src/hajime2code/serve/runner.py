@@ -16,20 +16,28 @@ from ..workspace import Workspace
 from .bus import EventBus
 from .events import extract_state_patch, translate
 from .store import TaskStore
+from .stub import STUB_MODEL_ID
 
 STREAM_MODES = ["updates", "messages", "debug"]
 
 # runner 只依赖 `.stream(...)` 这一个鸭子接口。LangGraph 的 CompiledStateGraph.stream
 # 是重载 + 大量关键字参数，写成 Protocol 反而无法被满足，因此这里用 Any 做鸭子类型。
-GraphFactory = Callable[[Path], Any]
+# 第二个参数是模型名：``None`` 表示用服务端默认；``"stub"`` 表示无模型模式。
+GraphFactory = Callable[[Path, str | None], Any]
 
 
 def default_graph_factory(settings: Settings) -> GraphFactory:
-    def factory(workspace: Path) -> Any:
+    def factory(workspace: Path, model: str | None = None) -> Any:
+        ws = Workspace(workspace)
+        if model == STUB_MODEL_ID:
+            from .stub import build_stub_graph
+
+            return build_stub_graph(settings=settings, workspace=ws)
+
         from ..graph.builder import build_default_graph
 
-        ws = Workspace(workspace)
-        return build_default_graph(settings, tools=build_fs_tools(ws), workspace=ws)
+        effective = settings.model_copy(update={"model_name": model}) if model else settings
+        return build_default_graph(effective, tools=build_fs_tools(ws), workspace=ws)
 
     return factory
 
@@ -43,6 +51,7 @@ def run_task(
     bus: EventBus,
     store: TaskStore,
     settings: Settings,
+    model: str | None = None,
 ) -> None:
     """阻塞执行；由调用方放进 worker 线程（``asyncio.to_thread``）。"""
     bus.publish(task_id, "task.created", {"task": task, "workspace": str(workspace)})
@@ -50,7 +59,7 @@ def run_task(
     budget = empty_budget()
 
     try:
-        graph = graph_factory(workspace)
+        graph = graph_factory(workspace, model)
         stream = graph.stream(
             {"task": task},
             config={"recursion_limit": 100 + settings.max_steps * 4},

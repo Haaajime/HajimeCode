@@ -29,6 +29,11 @@ class WorkspaceError(Exception):
     """工作区路径越界或参数非法；message 会作为 tool_result 回传给模型。"""
 
 
+def is_ignored_name(name: str) -> bool:
+    """单个目录名是否属于"构建产物 / 工具缓存"（按名字判断，不涉及路径层级）。"""
+    return name in IGNORED_DIR_NAMES
+
+
 class Workspace:
     def __init__(self, root: str | Path) -> None:
         resolved = Path(root).expanduser().resolve()
@@ -62,4 +67,4 @@ class Workspace:
             relative = path.relative_to(self.root)
         except ValueError:
             return False  # 工作区之外：交给 resolve 报越界，此处不做忽略判定
-        return any(part in IGNORED_DIR_NAMES for part in relative.parts)
+        return any(is_ignored_name(part) for part in relative.parts)

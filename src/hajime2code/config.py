@@ -14,6 +14,8 @@ from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+#: 项目根目录（公开别名，供目录选择器等模块使用）。
+PROJECT_ROOT = _PROJECT_ROOT
 
 
 def _env_files() -> tuple[Path, ...]:
@@ -78,6 +80,18 @@ class Settings(BaseSettings):
         default=2, validation_alias=AliasChoices("MAX_ATTEMPTS", "H2C_MAX_ATTEMPTS")
     )
 
+    # ---- 前端可选项 ----
+    # 模型候选（逗号分隔）；实际列表 = 当前 model_name + 这里去重后的其余项。
+    model_choices: str = Field(
+        default="deepseek-chat,deepseek-reasoner",
+        validation_alias=AliasChoices("H2C_MODEL_CHOICES", "MODEL_CHOICES"),
+    )
+    # 目录选择器的浏览边界。前端只能在这个根之下浏览，
+    # 否则会变成一个"任意读取本机目录"的接口。默认 = 本项目所在目录的上一级。
+    browse_root: Path | None = Field(
+        default=None, validation_alias=AliasChoices("H2C_BROWSE_ROOT", "BROWSE_ROOT")
+    )
+
     # ---- 工作区 ----
     workspace: Path = Field(default_factory=Path.cwd)
 
@@ -102,6 +116,22 @@ class Settings(BaseSettings):
             cache_miss_per_mtok=self.price_cache_miss_per_mtok,
             output_per_mtok=self.price_output_per_mtok,
         )
+
+    @property
+    def available_models(self) -> list[str]:
+        """可选模型：当前配置的模型排第一，其余候选去重追加。"""
+        ordered = [self.model_name]
+        for name in self.model_choices.split(","):
+            candidate = name.strip()
+            if candidate and candidate not in ordered:
+                ordered.append(candidate)
+        return ordered
+
+    @property
+    def resolved_browse_root(self) -> Path:
+        """目录选择器的浏览根（解析后）。"""
+        root = self.browse_root if self.browse_root is not None else _PROJECT_ROOT.parent
+        return root.expanduser().resolve()
 
     def require_api_key(self) -> str:
         key = self.api_key.strip()

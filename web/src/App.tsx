@@ -1,9 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { createTask, getHealth, listTasks, subscribe } from './api'
-import type { Budget, TaskEvent, TaskSummary } from './api'
+import {
+  createTask,
+  getHealth,
+  listModels,
+  listPresets,
+  listTasks,
+  subscribe,
+} from './api'
+import type { Budget, ModelOption, TaskEvent, TaskSummary, WorkspacePreset } from './api'
 import { CostBar } from './components/CostBar'
 import { TaskForm } from './components/TaskForm'
+import type { SubmitPayload } from './components/TaskForm'
 import { TaskList } from './components/TaskList'
 import { Timeline } from './components/Timeline'
 
@@ -16,6 +24,10 @@ export default function App() {
   const [live, setLive] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [models, setModels] = useState<ModelOption[]>([])
+  const [defaultModel, setDefaultModel] = useState('')
+  const [hasApiKey, setHasApiKey] = useState(false)
+  const [presets, setPresets] = useState<WorkspacePreset[]>([])
 
   // 记录"当前真正订阅的任务"，避免切换任务时旧连接的事件写进新视图
   const activeId = useRef<string | null>(null)
@@ -32,6 +44,16 @@ export default function App() {
     void getHealth()
       .then((health) => setModel(health.model))
       .catch(() => setModel(''))
+    void listModels()
+      .then((payload) => {
+        setModels(payload.models)
+        setDefaultModel(payload.default)
+        setHasApiKey(payload.has_api_key)
+      })
+      .catch(() => setModels([]))
+    void listPresets()
+      .then((payload) => setPresets(payload.workspaces))
+      .catch(() => setPresets([]))
     void refreshTasks()
   }, [refreshTasks])
 
@@ -65,11 +87,11 @@ export default function App() {
 
   const selected = tasks.find((item) => item.id === selectedId) ?? null
 
-  async function handleSubmit(task: string, workspace: string) {
+  async function handleSubmit(payload: SubmitPayload) {
     setBusy(true)
     setError(null)
     try {
-      const id = await createTask(task, workspace || undefined)
+      const id = await createTask(payload.task, payload.workspace || undefined, payload.model)
       await refreshTasks()
       setSelectedId(id)
     } catch (exc) {
@@ -106,9 +128,16 @@ export default function App() {
         <div className="mb-3 rounded-lg bg-rose-950/60 px-3 py-2 text-xs text-rose-300">{error}</div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-[340px_1fr]">
+      <div className="grid gap-4 lg:grid-cols-[380px_1fr]">
         <div className="space-y-3">
-          <TaskForm onSubmit={handleSubmit} disabled={busy} />
+          <TaskForm
+            onSubmit={handleSubmit}
+            disabled={busy}
+            models={models}
+            defaultModel={defaultModel}
+            hasApiKey={hasApiKey}
+            presets={presets}
+          />
           <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
             <h2 className="mb-2 text-sm font-semibold tracking-wide text-slate-300">任务列表</h2>
             <TaskList tasks={tasks} selectedId={selectedId} onSelect={setSelectedId} />

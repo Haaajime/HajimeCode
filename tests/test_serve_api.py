@@ -22,7 +22,7 @@ class StubGraph:
 
 
 def _client(settings: Settings) -> httpx.AsyncClient:
-    app = create_app(settings=settings, graph_factory=lambda _ws: StubGraph())
+    app = create_app(settings=settings, graph_factory=lambda _ws, _model: StubGraph())
     return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://testserver")
 
 

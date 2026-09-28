@@ -45,7 +45,7 @@ def _run(graph: Any, settings: Settings) -> tuple[EventBus, TaskStore, str]:
         task_id=record.id,
         task="任务",
         workspace=Path(settings.workspace),
-        graph_factory=lambda _ws: graph,
+        graph_factory=lambda _ws, _model: graph,
         bus=bus,
         store=store,
         settings=settings,
@@ -113,7 +113,7 @@ def _infinite(text: str) -> Iterator[AIMessage]:
 def _real_graph_factory(settings: Settings) -> Any:
     model = GenericFakeChatModel(messages=_infinite("我用假模型完成了任务。"))
 
-    def factory(_workspace: Path) -> Any:
+    def factory(_workspace: Path, _model: str | None = None) -> Any:
         agent = build_react_agent(model, [], system_prompt="s")
         return build_graph(
             settings=settings,
