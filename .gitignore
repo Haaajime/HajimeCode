@@ -22,10 +22,13 @@ reports/*.json
 reports/*.html
 /tmp_ws/
 
-# 前端（W8 起）
+# 前端
 web/node_modules/
 web/dist/
 web/.vite/
+# 本机 npm 全局缓存曾有残留冲突，改用项目内独立缓存
+.npm-cache/
+web/.npm-cache/
 
 # 编辑器 / 系统
 .idea/

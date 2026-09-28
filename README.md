@@ -24,6 +24,26 @@ uv run python -m pytest        # 离线单测，零 API 消耗
 uv run hajime2code -w . "统计 src 下的 Python 文件数量，并说明目录结构"
 ```
 
+### Web 控制台
+
+前端为 Vite + React + TS，构建产物由 FastAPI 静态托管，**单容器交付**。
+
+```bash
+cd web && npm install && npm run build && cd ..   # 构建前端（只需一次，除非改了前端）
+uv run hajime2code-web                             # http://127.0.0.1:8000
+```
+
+开发模式（前端热更新，API 代理到 8000）：
+
+```bash
+uv run hajime2code-web --reload    # 终端 A
+cd web && npm run dev              # 终端 B → http://127.0.0.1:5173
+```
+
+页面能力：提交任务 → **实时执行时间线**（节点 / 工具调用 / 模型 token 流）+ 成本与缓存命中条。
+
+> 若本机 npm 需要代理：`export HTTPS_PROXY=http://127.0.0.1:7897` 后再 `npm install`。
+
 ## 架构
 
 ```
@@ -53,8 +73,18 @@ src/hajime2code/
 ├── graph/
 │   ├── state.py     # AgentState + reducers（add_messages / add_budget）
 │   ├── builder.py   # StateGraph 装配与 compile
+│   ├── agents.py    # act 节点内的 create_agent 子图
 │   └── nodes/       # intake / plan / act / reflect / finalize
+├── serve/           # FastAPI + SSE 事件总线 + 任务执行器
+│   ├── events.py    # LangGraph 流 → 事件协议的纯翻译层
+│   ├── bus.py       # 线程安全事件总线（支持 Last-Event-ID 续传）
+│   ├── runner.py    # 图执行 + 事件发布 + 预算累计
+│   └── app.py       # REST + SSE + 前端静态托管
 └── cli.py           # 命令行入口
+
+web/                 # Vite + React + TS 控制台
+├── src/api.ts       # 后端契约（类型 + EventSource 订阅）
+└── src/components/  # TaskForm / TaskList / Timeline / CostBar
 ```
 
 ## 工程约定
