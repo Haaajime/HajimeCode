@@ -15,8 +15,7 @@
 | 5 | 工程 | 任务记录**仅存内存**（`serve/store.py`），服务重启即丢 | 无法回看历史任务 | W4 |
 | 6 | 口径 | 成本单价为**占位值**（`config.py` 的 `price_*`），未按 DeepSeek 官方定价校准 | 引用成本结论前必须校准，否则 E4 的绝对值不可信 | W5 |
 | 7 | 能力 | `glob` 输出**不区分符号链接**（`escape_link` 与普通文件看不出差别） | 真实模型实测时明确抱怨："工具未暴露链接信息，无法证实是否为符号链接"。影响对结构的判断 | 待排 |
-| 8 | 能力 | **没有内容搜索工具**（无 `grep` / `search`），工具集只有 `read` / `list_dir` / `glob` / `write` / `edit` | agentic search 的支柱缺失。行业已收敛到"搜索优先"（Anthropic 2025-05 删掉整个向量管线换成一个 grep，称其 "outperformed everything, by a lot"）。没有它，在真实仓库里无法定位改动点 | **P0**（调研结论） |
-| 9 | 能力 | **无方向性文档加载**：`intake` 不载入 `AGENTS.md` / `CLAUDE.md` / `README.md` | Claude Code 的实际做法是开局先载 `CLAUDE.md`，再用 glob/grep 按需探索。缺这一步，模型每进一个仓库都要从零摸索结构 | **P0**（调研结论） |
+| 8 | 性能/安全 | `search` **每次全量扫描**（无索引），且正则无超时保护 | 大仓库上单次搜索可能数秒；恶意/失控的灾难性回溯正则（ReDoS）可长时间占用。当前有 `max_results` 早停与控制台步数护栏，风险可接受，但 W6 引入索引前不宜用于超大仓库 | W6 |
 | — | 已调研·不做 | ~~"带大小/行数/类型的目录树概览工具"~~ | **经调研判定不是公认最佳方案**：信息密度低、在真实仓库规模（SWE-bench 平均 438K 行 / 3010 文件）不可用、有结构无语义；且**不解决我们实测的失败**（模型已 39/39 列对，错在元数据与计数推理）。降级为"有界 + 诚实截断"的可选导航辅助。详见 `调研_代码库结构如何进上下文.md` | 降级 |
 
 ### 修复选项（开放项 2 / 3 一并决定）
@@ -30,6 +29,8 @@
 
 | 日期 | 问题 | 修复 |
 |---|---|---|
+| 2026-09-28 | **无内容搜索工具**（原开放项 8，调研定位的最大缺口）：工具集只有 `read`/`list_dir`/`glob`，**无法"先定位再读"**，在真实仓库里只能靠猜文件名 | 新增 `search`（正则内容检索）：支持 `path` 起点 / `file_pattern` 过滤 / `ignore_case` / `context_lines`；复用工作区边界、忽略目录与二进制嗅探；单行超长自动裁剪。**返回诚实元数据**（`returned`/`total_matched`/`truncated`/`files_scanned`/`files_with_matches`/`files_skipped_binary`/`files_skipped_large`），并声明"无命中"只对已扫描范围成立。提交 `47bb914` |
+| 2026-09-28 | **无方向性文档加载**（原开放项 9）：`intake` 不载入 `AGENTS.md`/`CLAUDE.md`/`README.md`，模型每进一个仓库都要从零摸索结构 | 新增 `project_doc.py`：`intake` 按 `AGENTS.md` → `CLAUDE.md` → `README.md` 取首个命中，上限 **200 行 / 8000 字符**（官方经验：同类文件超 200 行会降低遵循度），超出截断并显式标注；同时写入 `state.project_brief` 供 `plan` 节点使用。无文档时首条消息原样是任务。**真实模型实测**：模型答出"零引用、零测试覆盖"，并主动报告 "未截断，扫描 24 个文件" —— 证明它读懂了诚实元数据契约。提交 `47bb914` |
 | 2026-09-28 | **文件读取的两处静默失败**（排查"Agent 读不全文件"时用磁盘真相比对发现）：① `Workspace.is_ignored` 比较**绝对路径** parts，工作区自身路径含 `build`/`dist`/`node_modules` 时**整个工作区被判为忽略** —— `glob` 返回 `[]`、`list_dir` 返回 0 项，而文件确实存在。② `glob`/`list_dir` 的 200 条上限是**静默截断** —— 350 个文件时 `glob` 只给 200 条且无提示，`list_dir` 表头写"共 350 项"却只列 200 | ① 改为只比较**工作区内相对部分**；② `glob` 改返回 JSON 对象（`pattern`/`returned`/`total_matched`/`truncated`/`paths`/`hint?`），`list_dir` 表头显式标注截断；`read` 遇二进制直接说明而非灌乱码。新增 `tests/fixtures/sample_repo/` 与 19 条覆盖度测试（判据为"与磁盘真相逐条比对"）。提交 `610d4b6` |
 | 2026-09-28 | **主图在真实模型上根本跑不动**（原开放项 2）：`plan` / `reflect` 两个节点用 `with_structured_output` 的**默认** `method="json_schema"`，DeepSeek 的 OpenAI 兼容接口不支持该响应格式，返回 `400 This response_format type is unavailable now`。**修复前从未有一次真实模型端到端成功** | 实测三种方式：`json_schema`（默认）✗ / `json_mode` ✗ / **`function_calling` ✓**。在 `models.py` 收敛出 `structured_output()` helper 显式指定 `function_calling`，`plan.py`、`reflect.py` 改用它。**修复后真实端到端跑通**：状态 `done`、LLM 调用 5、tokens 6233/1462、缓存命中率 43.1%、成本 ¥0.0120；结论经独立核对正确（模型答 27 个 `.py`，`find` 实测 27）。提交 `ba02b0a` |
 | 2026-09-28 | **「浏览器内前端渲染未验证」已闭环**：W2 只验证到事件流产生 54 条事件，未验证 DOM 真的渲染出来 | 用**系统已装的 Chrome + CDP**（零安装，见「验证方法」）实测桩图服务：时间线（节点/token 流/工具卡片/tool.finished）、任务列表、计划、缓存命中率 91% 均**正确渲染**。**同时发现开放项 2 的 404 缺陷** |
