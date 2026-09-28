@@ -20,6 +20,8 @@ from langgraph.graph.state import CompiledStateGraph
 
 from ..config import Settings
 from ..models import build_chat_model
+from ..project_doc import make_project_doc_loader
+from ..workspace import Workspace
 from .agents import build_react_agent
 from .nodes.act import make_act_node
 from .nodes.finalize import make_finalize_node
@@ -55,11 +57,12 @@ def build_graph(
     judge: Runnable[Any, Any],
     agent: Any,
     checkpointer: Any | None = None,
+    project_doc: Any | None = None,
 ) -> CompiledStateGraph:
-    """装配主图。planner / judge / agent 均可注入，便于离线测试与消融实验。"""
+    """装配主图。planner / judge / agent / project_doc 均可注入，便于离线测试与消融实验。"""
     builder = StateGraph(AgentState)
 
-    _add_node(builder, NODE_INTAKE, make_intake_node())
+    _add_node(builder, NODE_INTAKE, make_intake_node(project_doc))
     _add_node(builder, NODE_PLAN, make_plan_node(planner, settings.pricing))
     _add_node(builder, NODE_ACT, make_act_node(agent, settings))
     _add_node(builder, NODE_REFLECT, make_reflect_node(judge, settings))
@@ -86,14 +89,21 @@ def build_default_graph(
     middleware: Sequence[Any] = (),
     model: BaseChatModel | None = None,
     checkpointer: Any | None = None,
+    workspace: Workspace | None = None,
 ) -> CompiledStateGraph:
-    """按默认依赖装配：DeepSeek 模型 + 官方 ReAct 子图 + 规划/验收节点。"""
+    """按默认依赖装配：DeepSeek 模型 + 官方 ReAct 子图 + 规划/验收节点。
+
+    传入 ``workspace`` 时，``intake`` 会载入该工作区的方向性文档
+    （AGENTS.md / CLAUDE.md / README.md）。
+    """
     chat = model or build_chat_model(settings)
     agent = build_react_agent(chat, list(tools), middleware=middleware)
+    doc_loader = make_project_doc_loader(workspace) if workspace is not None else None
     return build_graph(
         settings=settings,
         planner=make_llm_planner(chat),
         judge=make_llm_judge(chat),
         agent=agent,
         checkpointer=checkpointer,
+        project_doc=doc_loader,
     )

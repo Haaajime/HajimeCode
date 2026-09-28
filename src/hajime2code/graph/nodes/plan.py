@@ -27,15 +27,25 @@ class PlanResult(BaseModel):
 
 
 def make_llm_planner(model: BaseChatModel) -> Runnable[Any, Any]:
-    prompt = ChatPromptTemplate.from_messages([("system", PLAN_SYSTEM), ("human", "{task}")])
+    prompt = ChatPromptTemplate.from_messages([("system", PLAN_SYSTEM), ("human", "{brief}{task}")])
     return prompt | structured_output(model, PlanResult)
+
+
+def _project_context(state: AgentState) -> str:
+    """把方向性文档渲染成规划提示的前缀；没有则返回空串（模板里就是"无前缀"）。"""
+    brief = (state.get("project_brief") or "").strip()
+    if not brief:
+        return ""
+    source = state.get("project_brief_source") or "项目说明"
+    return f"## 项目说明（来自 {source}）\n\n{brief}\n\n"
 
 
 def make_plan_node(planner: Runnable[Any, Any], pricing: Pricing) -> NodeFn:
     def plan(state: AgentState) -> dict[str, Any]:
         tracker = UsageTracker(pricing)
         result: PlanResult = planner.invoke(
-            {"task": state.get("task", "")}, config={"callbacks": [tracker]}
+            {"task": state.get("task", ""), "brief": _project_context(state)},
+            config={"callbacks": [tracker]},
         )
         items = list(result.todos) or list(result.steps)
         todos: list[Todo] = [

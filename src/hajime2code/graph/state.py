@@ -79,6 +79,9 @@ class AgentState(TypedDict, total=False):
     attempts: int
     status: TaskStatus
     summary: str
+    # 工作区方向性文档（AGENTS.md / CLAUDE.md / README.md）—— 由 intake 载入
+    project_brief: str
+    project_brief_source: str
 
 
 NodeFn = Callable[[AgentState], dict[str, Any]]

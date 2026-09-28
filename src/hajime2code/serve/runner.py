@@ -28,7 +28,8 @@ def default_graph_factory(settings: Settings) -> GraphFactory:
     def factory(workspace: Path) -> Any:
         from ..graph.builder import build_default_graph
 
-        return build_default_graph(settings, tools=build_fs_tools(Workspace(workspace)))
+        ws = Workspace(workspace)
+        return build_default_graph(settings, tools=build_fs_tools(ws), workspace=ws)
 
     return factory
 

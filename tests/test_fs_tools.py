@@ -12,7 +12,7 @@ def _tools(workspace: Workspace) -> dict[str, Any]:
 
 
 def test_exposes_expected_tool_set(workspace: Workspace) -> None:
-    assert set(_tools(workspace)) == {"read", "list_dir", "glob", "write", "edit"}
+    assert set(_tools(workspace)) == {"read", "list_dir", "glob", "search", "write", "edit"}
 
 
 def test_read_returns_header_and_content(workspace: Workspace) -> None:

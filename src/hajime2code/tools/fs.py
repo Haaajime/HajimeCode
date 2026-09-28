@@ -1,15 +1,18 @@
-"""文件系统工具：read / glob / list_dir / write / edit。
+"""文件系统工具：read / glob / search / list_dir / write / edit。
 
 设计约束：
 - **全部** 经 ``Workspace.resolve`` 做路径边界校验，越界直接拒绝。
 - 工具内部捕获异常并返回 ``[tool_error] ...`` 文本，让模型自行纠错，而不是中断整张图。
 - ``write`` / ``edit`` 有副作用，**W3 起**会被权限中间件（fail-closed + 人工审批）拦截；
   这里只负责"能安全执行"，不负责"是否允许执行"。
+- 列举类工具（``glob`` / ``list_dir`` / ``search``）**一律显式报告截断**，不静默少给。
 """
 
 from __future__ import annotations
 
 import json
+import re
+from fnmatch import fnmatch
 from typing import Any
 
 from langchain_core.tools import BaseTool, tool
@@ -20,9 +23,20 @@ MAX_LIST = 200
 MAX_READ_CHARS = 60_000
 BINARY_SNIFF_BYTES = 4096
 
+# ---- search ----
+MAX_SEARCH_RESULTS = 50
+MAX_SEARCH_LINE_CHARS = 300
+MAX_SEARCH_FILE_BYTES = 1_000_000
+
 
 def _err(exc: Exception) -> str:
     return f"[tool_error] {exc}"
+
+
+def _clip(text: str, limit: int = MAX_SEARCH_LINE_CHARS) -> str:
+    """把单行压到可比长度：长行（如压缩过的 JS）会撑爆上下文。"""
+    stripped = text.rstrip()
+    return stripped if len(stripped) <= limit else stripped[:limit] + "…"
 
 
 def build_fs_tools(workspace: Workspace) -> list[BaseTool]:
@@ -128,6 +142,133 @@ def build_fs_tools(workspace: Workspace) -> list[BaseTool]:
             return _err(exc)
 
     @tool
+    def search(
+        pattern: str,
+        path: str = ".",
+        file_pattern: str | None = None,
+        ignore_case: bool = False,
+        context_lines: int = 0,
+        max_results: int = MAX_SEARCH_RESULTS,
+    ) -> str:
+        """在工作区的文件**内容**里按正则搜索（grep）。返回 JSON **对象**。
+
+        这是"先定位、再阅读"的主力工具：先用它找到命中位置，再用 `read` 读上下文，
+        **不要靠猜文件名**。适合定位某个函数/类/字符串定义或引用出现在哪里。
+
+        返回形如 ``{"pattern", "path", "returned", "total_matched", "truncated",
+        "files_scanned", "files_with_matches", "files_skipped_binary",
+        "files_skipped_large", "matches", "hint"?}``。
+        **务必检查 ``truncated``**：为 true 时 ``matches`` 不完整，
+        请收窄 ``pattern`` 或 ``file_pattern`` 后重搜。
+
+        Args:
+            pattern: 正则表达式（Python ``re`` 语法）。
+            path: 搜索起点（文件或目录），默认工作区根目录。
+            file_pattern: 只搜匹配该 glob 的文件，如 ``'*.py'`` 或 ``'src/**/*.py'``。
+            ignore_case: 是否忽略大小写。
+            context_lines: 每条命中额外显示的上下文行数，0 表示只显示命中行。
+            max_results: 命中条数上限，默认 50。
+        """
+        try:
+            if not pattern:
+                return "[tool_error] pattern 不能为空"
+            if max_results <= 0:
+                return "[tool_error] max_results 必须为正整数"
+            if context_lines < 0:
+                return "[tool_error] context_lines 不能为负"
+            try:
+                regex = re.compile(pattern, re.IGNORECASE if ignore_case else 0)
+            except re.error as exc:
+                return f"[tool_error] 正则表达式无效：{exc}"
+
+            start = ws.resolve(path)
+            if start.is_file():
+                candidates: list[Any] = [start]
+            elif start.is_dir():
+                candidates = sorted(p for p in start.rglob("*") if p.is_file())
+            else:
+                return f"[tool_error] 路径不存在：{path}"
+
+            matches: list[dict[str, Any]] = []
+            total = 0
+            scanned = 0
+            with_matches = 0
+            skipped_binary = 0
+            skipped_large = 0
+
+            for candidate in candidates:
+                if ws.is_ignored(candidate):
+                    continue
+                relative = ws.relative(candidate)
+                if file_pattern and not (
+                    fnmatch(relative, file_pattern) or fnmatch(candidate.name, file_pattern)
+                ):
+                    continue
+                try:
+                    if candidate.stat().st_size > MAX_SEARCH_FILE_BYTES:
+                        skipped_large += 1
+                        continue
+                    raw = candidate.read_bytes()
+                except OSError:
+                    continue
+                if b"\x00" in raw[:BINARY_SNIFF_BYTES]:
+                    skipped_binary += 1
+                    continue
+
+                scanned += 1
+                lines = raw.decode("utf-8", errors="replace").splitlines()
+                hit_in_file = False
+                for index, line in enumerate(lines):
+                    if not regex.search(line):
+                        continue
+                    total += 1
+                    hit_in_file = True
+                    if len(matches) >= max_results:
+                        continue  # 继续数总数，只为如实报告
+                    entry: dict[str, Any] = {
+                        "file": relative,
+                        "line": index + 1,
+                        "text": _clip(line.strip()),
+                    }
+                    if context_lines > 0:
+                        low = max(0, index - context_lines)
+                        high = min(len(lines), index + context_lines + 1)
+                        entry["context"] = [
+                            f"{number + 1}: {_clip(lines[number])}" for number in range(low, high)
+                        ]
+                    matches.append(entry)
+                if hit_in_file:
+                    with_matches += 1
+
+            truncated = total > len(matches)
+            payload: dict[str, Any] = {
+                "pattern": pattern,
+                "path": path,
+                "returned": len(matches),
+                "total_matched": total,
+                "truncated": truncated,
+                "files_scanned": scanned,
+                "files_with_matches": with_matches,
+                "files_skipped_binary": skipped_binary,
+                "files_skipped_large": skipped_large,
+                "matches": matches,
+            }
+            if truncated:
+                payload["hint"] = (
+                    f"结果被截断：命中共 {total} 条，仅返回前 {len(matches)} 条。"
+                    f"请提高 max_results，或用更精确的 pattern / file_pattern 缩小范围。"
+                )
+            elif total == 0 and (skipped_binary or skipped_large):
+                payload["hint"] = (
+                    f"无命中，但有 {skipped_binary} 个二进制文件与 "
+                    f"{skipped_large} 个超大文件被跳过；"
+                    f"结论只对已扫描的 {scanned} 个文本文件成立。"
+                )
+            return json.dumps(payload, ensure_ascii=False)
+        except (WorkspaceError, OSError, ValueError) as exc:
+            return _err(exc)
+
+    @tool
     def write(path: str, content: str) -> str:
         """在工作区内创建或覆盖一个文本文件（父目录会自动创建）。有副作用。
 
@@ -181,4 +322,4 @@ def build_fs_tools(workspace: Workspace) -> list[BaseTool]:
         except (WorkspaceError, OSError) as exc:
             return _err(exc)
 
-    return [read, list_dir, glob, write, edit]
+    return [read, list_dir, glob, search, write, edit]

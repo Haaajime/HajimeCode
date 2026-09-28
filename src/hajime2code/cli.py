@@ -94,7 +94,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"任务：{args.task}")
     print("执行中（CLI 一次性输出；token 级流式见 Web 控制台）…")
 
-    graph = build_default_graph(settings, tools=build_fs_tools(workspace))
+    graph = build_default_graph(settings, tools=build_fs_tools(workspace), workspace=workspace)
     try:
         state = graph.invoke(
             {"task": args.task},
