@@ -1,6 +1,7 @@
 """命令行入口：执行一次性任务并输出结论与预算报告。
 
-流式输出（token 级）与交互式 REPL 在 W2 落地；W1 先保证图与预算链路端到端可跑。
+CLI 走 ``graph.invoke``，是**一次性输出**：token 级流式落在服务端 SSE（见 ``serve/``），
+不在终端复现。交互式 REPL 未排期。
 """
 
 from __future__ import annotations
@@ -91,7 +92,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"工作区：{workspace.root}")
     print(f"任务：{args.task}")
-    print("执行中（W1 为一次性输出，流式将在 W2 落地）…")
+    print("执行中（CLI 一次性输出；token 级流式见 Web 控制台）…")
 
     graph = build_default_graph(settings, tools=build_fs_tools(workspace))
     try:

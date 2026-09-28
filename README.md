@@ -47,7 +47,7 @@ cd web && npm run dev              # 终端 B → http://127.0.0.1:5173
 ## 架构
 
 ```
-CLI / (W7 起) FastAPI + SSE
+CLI / Web 控制台（FastAPI + SSE，W2 落地）
         │
         ▼
 LangGraph 主图（手写 StateGraph）
@@ -97,4 +97,6 @@ web/                 # Vite + React + TS 控制台
 ## 安全说明
 
 - 工具层所有文件访问都被 `Workspace` 限制在工作区内，越界路径直接拒绝。
-- 有副作用的工具（`write` / `edit`，后续的沙箱 `bash`）默认会被权限层拦截，需显式放行（W4 落地）。
+- ⚠️ **当前状态**：`write` / `edit` 已实现，但**尚未接入权限层**——即目前这两个工具是直接可写盘的。
+  权限层（`wrap_tool_call` fail-closed + 工作区边界 + 命令白名单）与沙箱 `bash` 的人工审批
+  在 **W3** 落地，届时写工具默认拦截、需显式放行。详见 `docs/known_issues.md`。
