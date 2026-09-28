@@ -1,0 +1,46 @@
+"""plan：把任务拆解为有序步骤与待办清单。
+
+planner 以 ``Runnable`` 注入，测试可换成纯离线实现，整图因此在零 API 下可跑通。
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from langchain_core.language_models import BaseChatModel
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import Runnable
+from pydantic import BaseModel, Field
+
+from ...budget import UsageTracker
+from ...config import Pricing
+from ...prompts import PLAN_SYSTEM
+from ..state import AgentState, NodeFn, Todo
+
+
+class PlanResult(BaseModel):
+    """规划结果：有序步骤 + 与之一一对应的待办项。"""
+
+    steps: list[str] = Field(description="完成任务的有序步骤，每条一句话，动词开头")
+    todos: list[str] = Field(default_factory=list, description="可勾选的待办清单，与 steps 对应")
+
+
+def make_llm_planner(model: BaseChatModel) -> Runnable[Any, Any]:
+    prompt = ChatPromptTemplate.from_messages([("system", PLAN_SYSTEM), ("human", "{task}")])
+    return prompt | model.with_structured_output(PlanResult)
+
+
+def make_plan_node(planner: Runnable[Any, Any], pricing: Pricing) -> NodeFn:
+    def plan(state: AgentState) -> dict[str, Any]:
+        tracker = UsageTracker(pricing)
+        result: PlanResult = planner.invoke(
+            {"task": state.get("task", "")}, config={"callbacks": [tracker]}
+        )
+        items = list(result.todos) or list(result.steps)
+        todos: list[Todo] = [
+            Todo(id=f"t{index + 1}", content=content, status="pending")
+            for index, content in enumerate(items)
+        ]
+        return {"plan": list(result.steps), "todos": todos, "budget": tracker.total}
+
+    return plan
