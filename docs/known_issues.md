@@ -14,6 +14,8 @@
 | 4 | 工程 | 前后端契约为**手写**（`web/src/api.ts`），未接 `openapi-typescript` 自动生成 | 契约漂移风险（后端改字段前端不报错） | W8 前 |
 | 5 | 工程 | 任务记录**仅存内存**（`serve/store.py`），服务重启即丢 | 无法回看历史任务 | W4 |
 | 6 | 口径 | 成本单价为**占位值**（`config.py` 的 `price_*`），未按 DeepSeek 官方定价校准 | 引用成本结论前必须校准，否则 E4 的绝对值不可信 | W5 |
+| 7 | 能力 | `glob` 输出**不区分符号链接**（`escape_link` 与普通文件看不出差别） | 真实模型实测时明确抱怨："工具未暴露链接信息，无法证实是否为符号链接"。影响对结构的判断 | 待排（层 3） |
+| 8 | 能力 | **文件结构如何组织成 prompt 尚无机制**：只有 `list_dir`（不递归）/ `glob` / `read`，理解一个仓库要多次往返拼凑，且无"概览 / 目录树"工具 | 这是"读取正确"之后的下一层——结构进不了上下文，模型只能靠零散往返猜 | 待排（层 3） |
 
 ### 修复选项（开放项 2 / 3 一并决定）
 
@@ -26,6 +28,7 @@
 
 | 日期 | 问题 | 修复 |
 |---|---|---|
+| 2026-09-28 | **文件读取的两处静默失败**（排查"Agent 读不全文件"时用磁盘真相比对发现）：① `Workspace.is_ignored` 比较**绝对路径** parts，工作区自身路径含 `build`/`dist`/`node_modules` 时**整个工作区被判为忽略** —— `glob` 返回 `[]`、`list_dir` 返回 0 项，而文件确实存在。② `glob`/`list_dir` 的 200 条上限是**静默截断** —— 350 个文件时 `glob` 只给 200 条且无提示，`list_dir` 表头写"共 350 项"却只列 200 | ① 改为只比较**工作区内相对部分**；② `glob` 改返回 JSON 对象（`pattern`/`returned`/`total_matched`/`truncated`/`paths`/`hint?`），`list_dir` 表头显式标注截断；`read` 遇二进制直接说明而非灌乱码。新增 `tests/fixtures/sample_repo/` 与 19 条覆盖度测试（判据为"与磁盘真相逐条比对"）。提交 `610d4b6` |
 | 2026-09-28 | **主图在真实模型上根本跑不动**（原开放项 2）：`plan` / `reflect` 两个节点用 `with_structured_output` 的**默认** `method="json_schema"`，DeepSeek 的 OpenAI 兼容接口不支持该响应格式，返回 `400 This response_format type is unavailable now`。**修复前从未有一次真实模型端到端成功** | 实测三种方式：`json_schema`（默认）✗ / `json_mode` ✗ / **`function_calling` ✓**。在 `models.py` 收敛出 `structured_output()` helper 显式指定 `function_calling`，`plan.py`、`reflect.py` 改用它。**修复后真实端到端跑通**：状态 `done`、LLM 调用 5、tokens 6233/1462、缓存命中率 43.1%、成本 ¥0.0120；结论经独立核对正确（模型答 27 个 `.py`，`find` 实测 27）。提交 `ba02b0a` |
 | 2026-09-28 | **「浏览器内前端渲染未验证」已闭环**：W2 只验证到事件流产生 54 条事件，未验证 DOM 真的渲染出来 | 用**系统已装的 Chrome + CDP**（零安装，见「验证方法」）实测桩图服务：时间线（节点/token 流/工具卡片/tool.finished）、任务列表、计划、缓存命中率 91% 均**正确渲染**。**同时发现开放项 2 的 404 缺陷** |
 | 2026-09-28 | **周次编号误标**：`W4` 被同时用在两个不同阶段上——"权限审批"应属 **W3**、"机制层中间件"应属 **W5**。涉及 `src/hajime2code/tools/fs.py`、`README.md`、`项目方案/新项目方案_Hajime2Code.md`（§4.2 正文 + v4.1 变更记录） | 分别更正为 W3 / W5。**根因**：方案 v4 重排路线表后（W2 并入前端、W3 提为沙箱审批），`技术栈重规划_讨论稿.md`（已归档）的旧编号——那里 W4 =「机制层中间件化」——被误沿用到 v4.1 正文。归档稿按约定不改写，此处记录以免再被误导 |
@@ -62,4 +65,34 @@
 - macOS 没有 GNU `timeout` 命令；要限时用后台启动 + 轮询产物文件。
 - Chrome 必须用**独立的 `--user-data-dir`**，否则会和正在运行的 Chrome 实例冲突。
 - 截图时用 `deviceScaleFactor: 2` 出图更清晰（便于人工核对渲染细节）。
+
+## 五、验证方法：文件读取覆盖度
+
+**为什么需要专门验证**：读取层的失败是**静默**的 —— 不报错、不提示，模型照常给出结论，
+只是结论基于残缺的信息。这类 bug 用"看一眼没崩"永远发现不了，必须**与磁盘真相逐条比对**。
+
+**样例仓库**：`tests/fixtures/sample_repo/`（39 个条目 = 14 目录 + 25 文件/链接），刻意覆盖：
+
+| 陷阱 | 样本 |
+|---|---|
+| 多级子包 | `src/core/`、`src/utils/` |
+| 4 层深嵌套 | `docs/deep/nested/more/level3.md` |
+| 隐藏文件 | `.gitignore`、`.env.example`、`empty_dir/.gitkeep` |
+| 非 ASCII 名 | `中文目录/说明.md`、`src/中文模块/常量.py` |
+| 含空格名 | `dir with spaces/note file.txt` |
+| 空目录 / 空文件 | `empty_dir/`、`empty_dir/.gitkeep` |
+| 二进制 | `assets/logo.bin` |
+| 仓库内符号链接 | `linked_readme.md` → `README.md`（可读） |
+| 越界符号链接 | `escape_link` → 工作区外（应列出但读取须被拒） |
+| 被忽略目录 | 测试运行时在临时目录创建 `node_modules/`、`__pycache__/`，须排除且不牵连同级 |
+
+**两类判据**（`tests/test_fs_coverage.py`，19 条）：
+
+1. **覆盖率**：`glob("**/*")` 的结果与 `os.walk` 得到的磁盘真相**逐条比对**（不漏、不多、`truncated` 为 false）。
+2. **诚实性**：制造超过上限的文件数，断言 `truncated=true`、`total_matched` 等于真实总数、并给出可操作 `hint` —— 而不是"返回非空就算过"。
+
+**真实模型侧的对齐检查**：把工作区指到样例仓库跑一次，核对模型给出的**总数与分类计数**
+是否与 `find` 一致。实测（2026-09-28）：总条目 39 ✓、`.py` 10 ✓、隐藏文件 3 ✓；
+分类明细（目录/文件/`.md`）有 off-by-one —— 说明**工具层已正确，偏差出在模型推理层**。
+
 
