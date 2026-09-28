@@ -86,8 +86,14 @@ class Settings(BaseSettings):
         default="deepseek-chat,deepseek-reasoner",
         validation_alias=AliasChoices("H2C_MODEL_CHOICES", "MODEL_CHOICES"),
     )
-    # 目录选择器的浏览边界。前端只能在这个根之下浏览，
-    # 否则会变成一个"任意读取本机目录"的接口。默认 = 本项目所在目录的上一级。
+    # 目录选择器的浏览边界。前端只能在这个根之下浏览。
+    #
+    # 注意区分：**工作目录本身不受此限制** —— 请求里直接给绝对路径可以指向任意存在的目录，
+    # 这里约束的只是"用界面逐层浏览"的能力。设边界是因为浏览接口是 HTTP 端点，
+    # 不限范围就等同于"任意列举本机目录"。
+    #
+    # 默认取**用户主目录**：再宽就没什么意义了，再窄则够不到自己的其他项目。
+    # 想收紧或放宽都改 `H2C_BROWSE_ROOT`。
     browse_root: Path | None = Field(
         default=None, validation_alias=AliasChoices("H2C_BROWSE_ROOT", "BROWSE_ROOT")
     )
@@ -129,9 +135,13 @@ class Settings(BaseSettings):
 
     @property
     def resolved_browse_root(self) -> Path:
-        """目录选择器的浏览根（解析后）。"""
-        root = self.browse_root if self.browse_root is not None else _PROJECT_ROOT.parent
-        return root.expanduser().resolve()
+        """目录选择器的浏览根（解析后）。默认用户主目录，可用 ``H2C_BROWSE_ROOT`` 覆盖。"""
+        if self.browse_root is not None:
+            return self.browse_root.expanduser().resolve()
+        try:
+            return Path.home().resolve()
+        except OSError:  # 极端环境下取不到家目录时退回项目上一级
+            return _PROJECT_ROOT.parent
 
     def require_api_key(self) -> str:
         key = self.api_key.strip()

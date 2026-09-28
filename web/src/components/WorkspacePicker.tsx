@@ -57,6 +57,11 @@ export function WorkspacePicker({ value, presets, onChange }: Props) {
         className="mono mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/70 px-3 py-2
                    text-xs text-slate-300 outline-none placeholder:text-slate-600 focus:border-sky-600"
       />
+      <p className="mt-0.5 text-[10px] leading-snug text-slate-600">
+        可直接填<strong className="font-medium text-slate-500">任意绝对路径</strong>
+        （如 <span className="mono">/Users/you/proj</span>），不受下面「浏览」范围的限制；
+        只有目录不存在才会被拒。
+      </p>
 
       {presets.length > 0 && (
         <div className="mt-1.5 flex flex-wrap gap-1">
@@ -96,16 +101,27 @@ export function WorkspacePicker({ value, presets, onChange }: Props) {
                   type="button"
                   disabled={browsed.parent === null || loading}
                   onClick={() => void go(browsed.parent ?? undefined)}
+                  title={
+                    browsed.parent === null ? '已到浏览范围顶端' : `上一级：${browsed.parent}`
+                  }
                   className="rounded border border-slate-700 px-1.5 py-0.5 text-[10px] text-slate-400
                              transition hover:border-slate-500 hover:text-slate-200
                              disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   ↑ 上级
                 </button>
-                <span className="mono truncate text-[10px] text-slate-500" title={browsed.path}>
-                  {browsed.relative === '.' ? browsed.browse_root : browsed.relative}
+                <span className="mono truncate text-[10px] text-slate-400" title={browsed.path}>
+                  {browsed.relative === '.' ? browsed.path : browsed.relative}
                 </span>
               </div>
+
+              <p className="mb-1.5 text-[10px] leading-snug text-slate-600">
+                浏览范围：<span className="mono">{browsed.browse_root}</span>
+                {browsed.parent === null && <span className="ml-1 text-slate-500">（已到顶端）</span>}
+                <br />
+                想浏览更大范围，用环境变量 <span className="mono">H2C_BROWSE_ROOT</span> 指定后重启服务
+                （如 <span className="mono">H2C_BROWSE_ROOT=/</span> 放开到整个磁盘）。
+              </p>
 
               <ul className="scroll-thin max-h-40 space-y-0.5 overflow-y-auto">
                 {browsed.dirs.length === 0 && (

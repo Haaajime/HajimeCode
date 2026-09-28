@@ -178,6 +178,47 @@ async def test_browse_refuses_to_leave_the_root(tmp_path: Path, escape: str) -> 
     assert "超出可浏览范围" in response.json()["detail"]
 
 
+async def test_workspace_may_live_outside_the_browse_root(tmp_path: Path) -> None:
+    """关键区别：**浏览有范围，工作目录没有**。
+
+    直接给绝对路径可以指向浏览范围之外的目录 —— 这既是产品需要（要能对任意仓库干活），
+    也说明浏览边界的作用是"别在界面上瞎逛"，而不是"禁止访问"。
+    """
+    inside = tmp_path / "browse"
+    outside = tmp_path / "outside"
+    inside.mkdir()
+    outside.mkdir()
+
+    settings = _settings(inside, browse_root=inside)
+    async with _client(settings) as client:
+        blocked = await client.get("/api/fs/dirs", params={"path": str(outside)})
+        assert blocked.status_code == 400, "浏览范围外不给列举"
+
+        accepted = await client.post(
+            "/api/tasks",
+            json={"task": "x", "workspace": str(outside), "model": STUB_MODEL_ID},
+        )
+        assert accepted.status_code == 201, "但作为工作区完全可用"
+
+
+def test_default_browse_root_is_home(tmp_path: Path) -> None:
+    settings = Settings(
+        api_key="", base_url="http://127.0.0.1:1", model_name="m", workspace=tmp_path
+    )
+    assert settings.resolved_browse_root == Path.home().resolve()
+
+
+def test_browse_root_can_be_overridden(tmp_path: Path) -> None:
+    settings = Settings(
+        api_key="",
+        base_url="http://127.0.0.1:1",
+        model_name="m",
+        workspace=tmp_path,
+        browse_root=tmp_path,
+    )
+    assert settings.resolved_browse_root == tmp_path.resolve()
+
+
 async def test_browse_rejects_a_file(tmp_path: Path) -> None:
     (tmp_path / "a.txt").write_text("x", encoding="utf-8")
     async with _client(_settings(tmp_path)) as client:
