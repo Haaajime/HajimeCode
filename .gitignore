@@ -7,6 +7,8 @@
 __pycache__/
 *.py[cod]
 .venv/
+# 被替换下来的旧虚拟环境（如环境损坏时重命名保留的那份），不要入库
+.venv.*/
 *.egg-info/
 dist/
 build/
