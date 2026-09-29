@@ -1,11 +1,20 @@
 """token / 成本 / 缓存命中统计。
 
-DeepSeek 的上下文缓存按前缀自动命中，OpenAI 兼容响应里带
-prompt_cache_hit_tokens / prompt_cache_miss_tokens。LangChain 会把它归一化进
-usage_metadata.input_token_details.cache_read；该字段缺失时回退读
-response_metadata.token_usage。
+DeepSeek 的上下文缓存按前缀自动命中。实测（2026-09-29，两次相同前缀的调用）
+它在 usage 里同时给出两种形式：
 
-成本单价可配置，是 E4「压缩 ↔ 缓存对抗」实验的数据来源。
+- 扁平字段 prompt_cache_hit_tokens / prompt_cache_miss_tokens（DeepSeek 自己的扩展）
+- 嵌套字段 prompt_tokens_details.cached_tokens（OpenAI 兼容写法）
+
+而 LangChain 归一化的是**嵌套那个**，落进 usage_metadata.input_token_details.cache_read。
+所以本模块优先读归一化字段，读不到再回退读原始的扁平字段——两条路实测取到的是同一个值
+（命中时两者都是 512，当次输入 674 token），回退只是防御。
+
+另一个值得记住的性质：**缓存只影响成本，不影响 token 数**。
+命中与未命中的 input_tokens 完全相同，差别只在单价。这正是 E4「压缩 ↔ 缓存对抗」
+实验的立足点——压缩省下的 token，可能同时毁掉前缀缓存，省的钱被吃回去。
+
+成本单价可配置，是 E4 实验的数据来源。
 """
 
 from __future__ import annotations
