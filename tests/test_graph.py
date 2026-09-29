@@ -115,6 +115,25 @@ def test_does_not_duplicate_messages_between_graphs(settings: Settings) -> None:
     assert contents.count("结论：完成") == 1
 
 
+def test_retry_does_not_inflate_message_count(settings: Settings) -> None:
+    """两轮重试后，主图消息应恰好四条：任务、第一轮回复、验收反馈、第二轮回复。
+
+    背景：act 曾按长度切片，只把新增消息交回主图，理由写的是"否则会重复累积"。
+    实测那与全量回传结果完全一致 —— messages 挂的 add_messages reducer 会给消息
+    补 id 再按 id 合并，子图回显的输入部分被原样替换回去，不会变成重复。
+    于是改成全量回传（少一个"输入必然是前缀"的位置假设），并用这条测试把
+    条数不膨胀钉住。
+    """
+    agent = FakeAgent(["第一次尝试", "第二次尝试"])
+    state = _graph(settings, _judge(False, True), agent).invoke({"task": "任务"})
+
+    messages = state["messages"]
+    assert len(messages) == 4, f"消息条数膨胀了：{[m.content for m in messages]}"
+    ids = [message.id for message in messages]
+    assert len(set(ids)) == len(ids), "消息 id 应唯一；出现重复即说明去重失效"
+    assert all(ids), "每条消息都应被 reducer 补上 id —— 去重正是靠它"
+
+
 def test_default_graph_assembly_makes_no_network_call(settings: Settings) -> None:
     graph = build_default_graph(settings)
     assert graph is not None
