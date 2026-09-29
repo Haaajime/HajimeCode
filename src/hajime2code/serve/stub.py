@@ -55,8 +55,9 @@ def _brief(text: Any, limit: int = MAX_STUB_TOOL_CHARS) -> str:
 class _StubAgent:
     """脚本化的"模型"：按固定套路调用真实工具，产出真实的工具调用/结果消息。
 
-    形状刻意对齐 create_agent —— 返回 {"messages": [*输入, *新增]}，
-    这样 act 节点"只把新增部分交回主图"的裁剪逻辑无需任何特判。
+    形状刻意对齐 create_agent —— 返回 {"messages": [*输入, *新增]}，也就是
+    原样回显输入、再追加本轮新增。真实的 ReAct 子图返回的正是这个形状，
+    保持一致才能让无模型模式忠实反映真实链路的行为。
     """
 
     def __init__(self, tools: dict[str, Any]) -> None:

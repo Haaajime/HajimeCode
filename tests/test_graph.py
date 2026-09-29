@@ -111,7 +111,7 @@ def test_does_not_duplicate_messages_between_graphs(settings: Settings) -> None:
     state = _graph(settings, _judge(True), agent).invoke({"task": "任务"})
     contents = [str(message.content) for message in state["messages"]]
 
-    assert contents.count("任务") == 1, "子图回显的前缀不应被重复写回主图"
+    assert contents.count("任务") == 1, "子图回显的输入消息不应变成重复消息"
     assert contents.count("结论：完成") == 1
 
 
