@@ -12,7 +12,7 @@ from ..state import AgentState, NodeFn, add_budget
 
 
 class AgentLike(Protocol):
-    """只依赖 ``invoke``，便于测试注入假实现。"""
+    """只依赖 invoke，便于测试注入假实现。"""
 
     def invoke(self, input: Any, config: Any = None, **kwargs: Any) -> Any: ...
 

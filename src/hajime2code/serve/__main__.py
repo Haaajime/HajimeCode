@@ -1,4 +1,4 @@
-"""``hajime2code-web`` 入口：启动 Web 服务。"""
+"""hajime2code-web 入口：启动 Web 服务。"""
 
 from __future__ import annotations
 

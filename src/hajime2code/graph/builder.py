@@ -3,7 +3,7 @@
     START → intake → plan → act → reflect ─┬─→ act        未通过验收，带着意见重试
                                             └─→ finalize → END
 
-``act`` 内部是官方 ``create_agent`` 装配的 ReAct 子图；主图管的是**图级控制流**
+act 内部是官方 create_agent 装配的 ReAct 子图；主图管的是图级控制流
 （规划、验收、回退、预算裁剪），两者职责正交。
 """
 
@@ -43,8 +43,8 @@ def _add_node(builder: _Builder, name: str, node: NodeFn) -> None:
     """注册节点。
 
     本项目的节点由工厂函数返回（为了注入 planner / judge / agent 以便离线测试与消融）。
-    mypy 无法从这种"工厂返回的 Callable"推断出 ``add_node`` 的 ``NodeInputT``，会退化成
-    ``Never`` 并报重载不匹配；直接传入 ``def`` 函数则正常。这属于 mypy 对泛型 Callable
+    mypy 无法从这种"工厂返回的 Callable"推断出 add_node 的 NodeInputT，会退化成
+    Never 并报重载不匹配；直接传入 def 函数则正常。这属于 mypy 对泛型 Callable
     实参的推断限制，运行时不受影响，因此在此集中做一次类型忽略。
     """
     builder.add_node(name, node)  # type: ignore[call-overload]
@@ -93,7 +93,7 @@ def build_default_graph(
 ) -> CompiledStateGraph:
     """按默认依赖装配：DeepSeek 模型 + 官方 ReAct 子图 + 规划/验收节点。
 
-    传入 ``workspace`` 时，``intake`` 会载入该工作区的方向性文档
+    传入 workspace 时，intake 会载入该工作区的方向性文档
     （AGENTS.md / CLAUDE.md / README.md）。
     """
     chat = model or build_chat_model(settings)

@@ -1,8 +1,8 @@
 """FastAPI 应用：REST + SSE + 前端静态托管。
 
 长任务模型（对应方案 §4.3）：
-``POST /api/tasks`` 立刻返回 ``task_id``（不阻塞），图在 worker 线程里跑，
-事件经事件总线推给 ``GET /api/tasks/{id}/events`` 的 SSE 订阅者。
+POST /api/tasks 立刻返回 task_id（不阻塞），图在 worker 线程里跑，
+事件经事件总线推给 GET /api/tasks/{id}/events 的 SSE 订阅者。
 """
 
 from __future__ import annotations
@@ -30,9 +30,9 @@ WEB_DIST = Path(__file__).resolve().parents[3] / "web" / "dist"
 MAX_BROWSE_ENTRIES = 200
 
 #: 后端接口版本。前端会拿它和自己期望的版本比对 ——
-#: 缺了这道握手，旧服务进程会把**新前端**发出去（StaticFiles 每次请求都从磁盘读），
+#: 缺了这道握手，旧服务进程会把新前端发出去（StaticFiles 每次请求都从磁盘读），
 #: 表现成"模型下拉空白 + 浏览 404"，症状看着莫名其妙。
-#: 每次**新增/变更**前端依赖的接口时都要 +1。
+#: 每次新增/变更前端依赖的接口时都要 +1。
 API_VERSION = 2
 
 #: 目录选择器里的快捷预设：样例仓库里几个有代表性的子目录
@@ -105,7 +105,7 @@ def create_app(
     def _browse_target(raw: str | None) -> Path:
         """把请求路径解析到浏览根之内的绝对目录；越界即拒绝。
 
-        这是有意设的边界：没有它，接口会变成一个**任意读取本机目录**的入口。
+        这是有意设的边界：没有它，接口会变成一个任意读取本机目录的入口。
         """
         root = resolved_settings.resolved_browse_root
         if raw is None or not raw.strip():
@@ -179,7 +179,7 @@ def create_app(
     async def list_dirs(path: str | None = None) -> dict[str, object]:
         """列出可浏览范围内的子目录，供前端目录选择器逐层进入。
 
-        只返回**目录**（工作区必须是目录）；隐藏目录与构建产物目录被隐藏，
+        只返回目录（工作区必须是目录）；隐藏目录与构建产物目录被隐藏，
         但会把隐藏数量如实报出，不制造"这里什么都没有"的错觉。
         """
         target = _browse_target(path)

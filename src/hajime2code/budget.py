@@ -1,9 +1,9 @@
 """token / 成本 / 缓存命中统计。
 
-DeepSeek 的上下文缓存按**前缀**自动命中，OpenAI 兼容响应里带
-``prompt_cache_hit_tokens`` / ``prompt_cache_miss_tokens``。LangChain 会把它归一化进
-``usage_metadata.input_token_details.cache_read``；该字段缺失时回退读
-``response_metadata.token_usage``。
+DeepSeek 的上下文缓存按前缀自动命中，OpenAI 兼容响应里带
+prompt_cache_hit_tokens / prompt_cache_miss_tokens。LangChain 会把它归一化进
+usage_metadata.input_token_details.cache_read；该字段缺失时回退读
+response_metadata.token_usage。
 
 成本单价可配置，是 E4「压缩 ↔ 缓存对抗」实验的数据来源。
 """

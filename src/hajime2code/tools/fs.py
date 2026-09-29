@@ -1,11 +1,11 @@
 """文件系统工具：read / glob / search / list_dir / write / edit。
 
 设计约束：
-- **全部** 经 ``Workspace.resolve`` 做路径边界校验，越界直接拒绝。
-- 工具内部捕获异常并返回 ``[tool_error] ...`` 文本，让模型自行纠错，而不是中断整张图。
-- ``write`` / ``edit`` 有副作用，**W3 起**会被权限中间件（fail-closed + 人工审批）拦截；
+- 全部 经 Workspace.resolve 做路径边界校验，越界直接拒绝。
+- 工具内部捕获异常并返回 [tool_error] ... 文本，让模型自行纠错，而不是中断整张图。
+- write / edit 有副作用，W3 起会被权限中间件（fail-closed + 人工审批）拦截；
   这里只负责"能安全执行"，不负责"是否允许执行"。
-- 列举类工具（``glob`` / ``list_dir`` / ``search``）**一律显式报告截断**，不静默少给。
+- 列举类工具（glob / list_dir / search）一律显式报告截断，不静默少给。
 """
 
 from __future__ import annotations
@@ -74,9 +74,9 @@ def build_fs_tools(workspace: Workspace) -> list[BaseTool]:
 
     @tool
     def list_dir(path: str = ".") -> str:
-        """列出工作区内某目录的下一层内容（**不递归**）；目录以 / 结尾。
+        """列出工作区内某目录的下一层内容（不递归）；目录以 / 结尾。
 
-        若条目数超过上限，表头会显式标注"仅显示前 N 项"，**不要据此断定目录只有这些内容** ——
+        若条目数超过上限，表头会显式标注"仅显示前 N 项"，不要据此断定目录只有这些内容 ——
         此时应改用 glob 或逐个进入子目录。
 
         Args:
@@ -94,7 +94,7 @@ def build_fs_tools(workspace: Workspace) -> list[BaseTool]:
             shown = rows[:MAX_LIST]
             head = f"(目录 {ws.relative(target)} 共 {len(rows)} 项"
             if len(rows) > len(shown):
-                head += f"｜**仅显示前 {len(shown)} 项**，另有 {len(rows) - len(shown)} 项未列出"
+                head += f"｜仅显示前 {len(shown)} 项，另有 {len(rows) - len(shown)} 项未列出"
             head += ")"
             return head + "\n" + "\n".join(shown)
         except (WorkspaceError, OSError) as exc:
@@ -102,11 +102,11 @@ def build_fs_tools(workspace: Workspace) -> list[BaseTool]:
 
     @tool
     def glob(pattern: str, max_results: int = MAX_LIST) -> str:
-        """按 glob 通配符列出工作区内的路径（支持 ** 递归），返回 JSON **对象**。
+        """按 glob 通配符列出工作区内的路径（支持  递归），返回 JSON 对象**。
 
-        返回形如 ``{"pattern", "returned", "total_matched", "truncated", "paths", "hint"?}``。
-        **务必检查 ``truncated``**：为 true 时 ``paths`` 只是匹配结果的一部分，
-        绝不能据此断定文件总数；请提高 ``max_results``，或用更精确的 pattern 缩小范围。
+        返回形如 {"pattern", "returned", "total_matched", "truncated", "paths", "hint"?}。
+        务必检查 truncated：为 true 时 paths 只是匹配结果的一部分，
+        绝不能据此断定文件总数；请提高 max_results，或用更精确的 pattern 缩小范围。
 
         Args:
             pattern: 通配符，如 'src/**/*.py'。
@@ -150,21 +150,21 @@ def build_fs_tools(workspace: Workspace) -> list[BaseTool]:
         context_lines: int = 0,
         max_results: int = MAX_SEARCH_RESULTS,
     ) -> str:
-        """在工作区的文件**内容**里按正则搜索（grep）。返回 JSON **对象**。
+        """在工作区的文件内容里按正则搜索（grep）。返回 JSON 对象。
 
-        这是"先定位、再阅读"的主力工具：先用它找到命中位置，再用 `read` 读上下文，
-        **不要靠猜文件名**。适合定位某个函数/类/字符串定义或引用出现在哪里。
+        这是"先定位、再阅读"的主力工具：先用它找到命中位置，再用 read 读上下文，
+        不要靠猜文件名。适合定位某个函数/类/字符串定义或引用出现在哪里。
 
-        返回形如 ``{"pattern", "path", "returned", "total_matched", "truncated",
+        返回形如 {"pattern", "path", "returned", "total_matched", "truncated",
         "files_scanned", "files_with_matches", "files_skipped_binary",
-        "files_skipped_large", "matches", "hint"?}``。
-        **务必检查 ``truncated``**：为 true 时 ``matches`` 不完整，
-        请收窄 ``pattern`` 或 ``file_pattern`` 后重搜。
+        "files_skipped_large", "matches", "hint"?}。
+        务必检查 truncated：为 true 时 matches 不完整，
+        请收窄 pattern 或 file_pattern 后重搜。
 
         Args:
-            pattern: 正则表达式（Python ``re`` 语法）。
+            pattern: 正则表达式（Python re 语法）。
             path: 搜索起点（文件或目录），默认工作区根目录。
-            file_pattern: 只搜匹配该 glob 的文件，如 ``'*.py'`` 或 ``'src/**/*.py'``。
+            file_pattern: 只搜匹配该 glob 的文件，如 '*.py' 或 'src/**/*.py'。
             ignore_case: 是否忽略大小写。
             context_lines: 每条命中额外显示的上下文行数，0 表示只显示命中行。
             max_results: 命中条数上限，默认 50。

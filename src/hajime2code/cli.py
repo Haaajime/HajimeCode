@@ -1,6 +1,6 @@
 """命令行入口：执行一次性任务并输出结论与预算报告。
 
-CLI 走 ``graph.invoke``，是**一次性输出**：token 级流式落在服务端 SSE（见 ``serve/``），
+CLI 走 graph.invoke，是一次性输出：token 级流式落在服务端 SSE（见 serve/），
 不在终端复现。交互式 REPL 未排期。
 """
 

@@ -1,8 +1,8 @@
 """主图状态定义。
 
-- ``messages`` 用官方 ``add_messages`` reducer（追加、按 id 去重）。
-- ``budget`` 用 ``add_budget`` reducer（累加），因为节点只上报**增量**。
-- 其余通道为 last-value-wins，节点返回部分字段即可（``total=False``）。
+- messages 用官方 add_messages reducer（追加、按 id 去重）。
+- budget 用 add_budget reducer（累加），因为节点只上报增量。
+- 其余通道为 last-value-wins，节点返回部分字段即可（total=False）。
 """
 
 from __future__ import annotations

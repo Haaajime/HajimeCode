@@ -1,11 +1,11 @@
-"""工作区方向性文档加载（``AGENTS.md`` / ``CLAUDE.md`` / ``README.md``）。
+"""工作区方向性文档加载（AGENTS.md / CLAUDE.md / README.md）。
 
-**为什么要有这个**：行业对"代码库结构怎么进上下文"的实际答案是**让项目自己声明结构**，
+为什么要有这个：行业对"代码库结构怎么进上下文"的实际答案是让项目自己声明结构，
 而不是让工具去猜。Claude Code 的做法就是开局先把项目自述文档载入上下文，再用
-glob / grep 按需探索。我们的 ``intake`` 原先完全不载，模型每进一个仓库都要从零摸索。
-详见 ``docs/调研_代码库结构如何进上下文.md``。
+glob / grep 按需探索。我们的 intake 原先完全不载，模型每进一个仓库都要从零摸索。
+详见 docs/调研_代码库结构如何进上下文.md。
 
-**大小刻意收紧**：官方对同类"每次都要读"的文件的经验是**超过 200 行会降低遵循度**
+大小刻意收紧：官方对同类"每次都要读"的文件的经验是超过 200 行会降低遵循度
 （越长占的上下文越多、模型越容易忽略）。故默认上限 200 行 / 8000 字符，
 超出部分截断并在正文里显式标注，绝不静默丢内容。
 """
@@ -27,7 +27,7 @@ MAX_CHARS = 8000
 
 @dataclass(frozen=True)
 class ProjectDoc:
-    """载入结果。``truncated`` 为真时 ``text`` 只是原文前缀。"""
+    """载入结果。truncated 为真时 text 只是原文前缀。"""
 
     path: str
     text: str
@@ -43,7 +43,7 @@ class ProjectDoc:
 
 
 def load_project_doc(workspace: Workspace) -> ProjectDoc | None:
-    """按优先级取**第一个存在**的候选文件；都不存在则返回 None。"""
+    """按优先级取第一个存在的候选文件；都不存在则返回 None。"""
     for name in CANDIDATE_NAMES:
         target: Path = workspace.root / name
         if not target.is_file():

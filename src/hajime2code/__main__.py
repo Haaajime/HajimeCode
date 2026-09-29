@@ -1,4 +1,4 @@
-"""``python -m hajime2code`` 入口。"""
+"""python -m hajime2code 入口。"""
 
 from __future__ import annotations
 

@@ -1,7 +1,7 @@
 """集中配置：pydantic-settings 读取 .env / 环境变量。
 
 密钥只从环境读取，严禁硬编码。项目内没有 .env 时会自动回退读取同级的
-``HajimeCode/.env``，避免在两处重复维护密钥。
+HajimeCode/.env，避免在两处重复维护密钥。
 """
 
 from __future__ import annotations
@@ -86,19 +86,19 @@ class Settings(BaseSettings):
         default="deepseek-chat,deepseek-reasoner",
         validation_alias=AliasChoices("H2C_MODEL_CHOICES", "MODEL_CHOICES"),
     )
-    # 前端**初始选中**的模型。留空 = 用 model_name。
-    # 想避免"手一抖就产生真实费用"，设成 `H2C_DEFAULT_MODEL=stub` 即可默认走无模型模式。
+    # 前端初始选中的模型。留空 = 用 model_name。
+    # 想避免"手一抖就产生真实费用"，设成 H2C_DEFAULT_MODEL=stub 即可默认走无模型模式。
     default_model: str = Field(
         default="", validation_alias=AliasChoices("H2C_DEFAULT_MODEL", "DEFAULT_MODEL")
     )
     # 目录选择器的浏览边界。前端只能在这个根之下浏览。
     #
-    # 注意区分：**工作目录本身不受此限制** —— 请求里直接给绝对路径可以指向任意存在的目录，
+    # 注意区分：工作目录本身不受此限制 —— 请求里直接给绝对路径可以指向任意存在的目录，
     # 这里约束的只是"用界面逐层浏览"的能力。设边界是因为浏览接口是 HTTP 端点，
     # 不限范围就等同于"任意列举本机目录"。
     #
-    # 默认取**用户主目录**：再宽就没什么意义了，再窄则够不到自己的其他项目。
-    # 想收紧或放宽都改 `H2C_BROWSE_ROOT`。
+    # 默认取用户主目录：再宽就没什么意义了，再窄则够不到自己的其他项目。
+    # 想收紧或放宽都改 H2C_BROWSE_ROOT。
     browse_root: Path | None = Field(
         default=None, validation_alias=AliasChoices("H2C_BROWSE_ROOT", "BROWSE_ROOT")
     )
@@ -140,7 +140,7 @@ class Settings(BaseSettings):
 
     @property
     def resolved_browse_root(self) -> Path:
-        """目录选择器的浏览根（解析后）。默认用户主目录，可用 ``H2C_BROWSE_ROOT`` 覆盖。"""
+        """目录选择器的浏览根（解析后）。默认用户主目录，可用 H2C_BROWSE_ROOT 覆盖。"""
         if self.browse_root is not None:
             return self.browse_root.expanduser().resolve()
         try:

@@ -1,6 +1,6 @@
-"""方向性文档加载（``AGENTS.md`` / ``CLAUDE.md`` / ``README.md``）与 intake 注入。
+"""方向性文档加载（AGENTS.md / CLAUDE.md / README.md）与 intake 注入。
 
-这一层解决的是"代码库结构怎么进上下文"：**让项目自己声明结构**，而不是让工具去猜。
+这一层解决的是"代码库结构怎么进上下文"：让项目自己声明结构，而不是让工具去猜。
 判据同样偏"诚实"——超长必须截断并标注，绝不能静默丢内容让模型以为看全了。
 """
 
@@ -130,7 +130,7 @@ def test_intake_injects_doc_and_task(tmp_path: Path) -> None:
 
 
 def test_intake_without_doc_keeps_message_verbatim() -> None:
-    """没有方向性文档时，首条消息必须**原样**是任务，不额外包标题。"""
+    """没有方向性文档时，首条消息必须原样是任务，不额外包标题。"""
     out = make_intake_node(lambda: None)({"task": "任务"})
     assert out["messages"][0].content == "任务"
     assert out["project_brief"] == ""

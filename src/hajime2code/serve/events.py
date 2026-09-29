@@ -2,13 +2,13 @@
 
 LangGraph 的 stream 输出形状（已实测，langgraph 1.2.12）：
 
-- 不传 ``subgraphs``：``(mode, data)``
-- 传 ``subgraphs=True``：``(namespace, mode, data)``
-- ``updates``：``{节点名: 该节点返回的增量}``
-- ``messages``：``(AIMessageChunk, metadata)``，metadata 含 ``langgraph_node``
-- ``debug``：``{"type": "task" | "task_result" | "checkpoint", "step": int, "payload": {...}}``
+- 不传 subgraphs：(mode, data)
+- 传 subgraphs=True：(namespace, mode, data)
+- updates：{节点名: 该节点返回的增量}
+- messages：(AIMessageChunk, metadata)，metadata 含 langgraph_node
+- debug：{"type": "task" | "task_result" | "checkpoint", "step": int, "payload": {...}}
 
-``translate`` 只做纯映射（不持有状态），预算累计由 ``runner`` 负责。
+translate 只做纯映射（不持有状态），预算累计由 runner 负责。
 """
 
 from __future__ import annotations
@@ -39,7 +39,7 @@ PREVIEW_CHARS = 300
 
 
 class TaskEvent(BaseModel):
-    """推送与落盘的最小事件单元。``seq`` 单调递增，用于 SSE 的 Last-Event-ID 续传。"""
+    """推送与落盘的最小事件单元。seq 单调递增，用于 SSE 的 Last-Event-ID 续传。"""
 
     seq: int
     task_id: str
@@ -62,7 +62,7 @@ class Translated:
 
 
 def normalize(item: Any) -> tuple[tuple[str, ...], str, Any]:
-    """把 2 元组 / 3 元组的流条目统一成 ``(namespace, mode, data)``。"""
+    """把 2 元组 / 3 元组的流条目统一成 (namespace, mode, data)。"""
     if isinstance(item, tuple):
         if len(item) == 3:
             namespace, mode, data = item
@@ -138,7 +138,7 @@ def _translate_messages(data: Any) -> list[Translated]:
     if not isinstance(data, tuple) or len(data) != 2:
         return []
     chunk, metadata = data
-    # messages 模式会把节点写入的**普通消息**也当成"消息"流出（例如 intake 写入的
+    # messages 模式会把节点写入的普通消息也当成"消息"流出（例如 intake 写入的
     # HumanMessage）。只有 AIMessageChunk 才是真正的模型 token 流，否则会把用户
     # 自己的输入误报成模型输出。
     if not isinstance(chunk, AIMessageChunk):
@@ -163,7 +163,7 @@ def translate(item: Any) -> list[Translated]:
 
 
 def extract_state_patch(item: Any) -> dict[str, Any] | None:
-    """取出 ``updates`` 条目里的节点输出，供 runner 合并成最终状态。"""
+    """取出 updates 条目里的节点输出，供 runner 合并成最终状态。"""
     namespace, mode, data = normalize(item)
     if mode != "updates" or not isinstance(data, dict):
         return None

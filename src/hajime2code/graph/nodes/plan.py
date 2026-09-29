@@ -1,6 +1,6 @@
 """plan：把任务拆解为有序步骤与待办清单。
 
-planner 以 ``Runnable`` 注入，测试可换成纯离线实现，整图因此在零 API 下可跑通。
+planner 以 Runnable 注入，测试可换成纯离线实现，整图因此在零 API 下可跑通。
 """
 
 from __future__ import annotations

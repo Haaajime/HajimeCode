@@ -1,6 +1,6 @@
 """共用 fixture。
 
-所有 fixture 都显式构造依赖，**不读取本机 .env**，保证离线、可复现、零 API 消耗。
+所有 fixture 都显式构造依赖，不读取本机 .env，保证离线、可复现、零 API 消耗。
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ import pytest
 from hajime2code.config import Settings
 from hajime2code.workspace import Workspace
 
-# tests/fixtures/ 下是**被测数据**（模拟真实仓库，里面自然也有 tests/test_*.py）。
+# tests/fixtures/ 下是被测数据（模拟真实仓库，里面自然也有 tests/test_*.py）。
 # 必须拦住 pytest 的自动收集，否则会把样例仓库的测试当成本项目测试来跑。
 collect_ignore_glob = ["fixtures/*"]
 

@@ -1,8 +1,8 @@
 """服务端可选项：模型列表 / 目录预设 / 目录浏览（含边界） / 无模型模式。
 
 重点验证三件事：
-1. **无模型模式在没有任何 API 密钥时也能跑通**，且预算为零 —— 这是它存在的意义。
-2. 目录浏览**不能越过浏览根**，否则接口会变成任意读取本机目录的入口。
+1. 无模型模式在没有任何 API 密钥时也能跑通，且预算为零 —— 这是它存在的意义。
+2. 目录浏览不能越过浏览根，否则接口会变成任意读取本机目录的入口。
 3. 非法模型名要被拒绝，而不是静默回退到默认模型（静默回退会让用户以为跑的是自己选的模型）。
 """
 
@@ -193,7 +193,7 @@ async def test_browse_refuses_to_leave_the_root(tmp_path: Path, escape: str) -> 
 
 
 async def test_workspace_may_live_outside_the_browse_root(tmp_path: Path) -> None:
-    """关键区别：**浏览有范围，工作目录没有**。
+    """关键区别：浏览有范围，工作目录没有。
 
     直接给绝对路径可以指向浏览范围之外的目录 —— 这既是产品需要（要能对任意仓库干活），
     也说明浏览边界的作用是"别在界面上瞎逛"，而不是"禁止访问"。
@@ -298,7 +298,7 @@ async def test_stub_mode_still_loads_the_project_doc(tmp_path: Path) -> None:
         events = await _wait_finished(client, response.json()["task_id"])
 
     summary = _assistant_text(events)
-    assert "已载入 `AGENTS.md`" in summary
+    assert "已载入 AGENTS.md" in summary
 
 
 async def test_stub_mode_says_so_when_no_project_doc(tmp_path: Path) -> None:
@@ -340,7 +340,7 @@ async def test_missing_workspace_is_rejected(tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     ("task", "expected"),
     [
-        ("读取 `slugify` 的用法", "slugify"),
+        ("读取 slugify 的用法", "slugify"),
         ("说明 engine.py 和 models.py 的关系", "engine"),
         ("Config 是怎么被用上的", "Config"),
         # 一整句中文不能当关键词 —— 当正则必然 0 命中，界面上看起来像功能坏了
@@ -357,7 +357,7 @@ def test_keyword_picks_something_usable(task: str, expected: str | None) -> None
 
 def test_keyword_never_produces_a_regex_bomb() -> None:
     """挑出来的词只含标识符字符与中文，直接当正则用不会炸。"""
-    for task in ("用 `a(b[c` 搜一下", "找找 (.*)+ 这类模式", "看看 [abc] 在哪"):
+    for task in ("用 a(b[c 搜一下", "找找 (.*)+ 这类模式", "看看 [abc] 在哪"):
         picked = _keyword(task)
         if picked is not None:
             import re as _re

@@ -11,11 +11,11 @@ from pydantic import BaseModel
 
 from .config import Settings
 
-# DeepSeek 的 OpenAI 兼容接口**不支持 json_schema 响应格式**。实测（2026-09-28）：
-#   - 默认 method="json_schema" → 400 `This response_format type is unavailable now`
+# DeepSeek 的 OpenAI 兼容接口不支持 json_schema 响应格式。实测（2026-09-28）：
+#   - 默认 method="json_schema" → 400 This response_format type is unavailable now
 #   - method="json_mode"        → 同样失败
 #   - method="function_calling" → 正常
-# langchain 的 with_structured_output 默认走 json_schema，因此**必须显式指定**
+# langchain 的 with_structured_output 默认走 json_schema，因此必须显式指定
 # function_calling，否则 plan / reflect 两个节点在真实模型上直接 400。
 STRUCTURED_OUTPUT_METHOD = "function_calling"
 

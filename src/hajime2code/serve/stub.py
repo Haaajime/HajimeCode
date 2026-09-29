@@ -1,15 +1,15 @@
-"""无模型模式：**真图 + 真工具 + 假决策**，零 API 成本。
+"""无模型模式：真图 + 真工具 + 假决策，零 API 成本。
 
 为什么需要它：本项目的图、工具、事件协议、前端时间线都是真实产物，但"跑一次"
-默认要花真实模型的钱。无模型模式让整条链路能**在没有密钥的情况下**跑通 ——
+默认要花真实模型的钱。无模型模式让整条链路能在没有密钥的情况下跑通 ——
 节点是真节点、工具是真工具、工作区是真工作区，只有"模型决策"是脚本化的。
 
-与"注入一个假 chat model"的区别：假模型仍要走 ``create_agent`` 与
-``structured_output``，而这里**连模型都不需要**，对 DeepSeek 的 function calling
+与"注入一个假 chat model"的区别：假模型仍要走 create_agent 与
+structured_output，而这里连模型都不需要，对 DeepSeek 的 function calling
 没有任何依赖（因此它也不受 provider 兼容性问题影响）。
 
 ⚠️ 诚实说明：没有 token 级流式输出，预算恒为 0，结论是固定套路而非真推理。
-**只适用于验证链路与手动体验，不能用于任何结论性判断。**
+只适用于验证链路与手动体验，不能用于任何结论性判断。
 """
 
 from __future__ import annotations
@@ -53,10 +53,10 @@ def _brief(text: Any, limit: int = MAX_STUB_TOOL_CHARS) -> str:
 
 
 class _StubAgent:
-    """脚本化的"模型"：按固定套路调用**真实工具**，产出真实的工具调用/结果消息。
+    """脚本化的"模型"：按固定套路调用真实工具，产出真实的工具调用/结果消息。
 
-    形状刻意对齐 ``create_agent`` —— 返回 ``{"messages": [*输入, *新增]}``，
-    这样 ``act`` 节点"只把新增部分交回主图"的裁剪逻辑无需任何特判。
+    形状刻意对齐 create_agent —— 返回 {"messages": [*输入, *新增]}，
+    这样 act 节点"只把新增部分交回主图"的裁剪逻辑无需任何特判。
     """
 
     def __init__(self, tools: dict[str, Any]) -> None:
@@ -103,7 +103,7 @@ class _StubAgent:
             )
             yield search_request
             yield found
-            search_note = f"按关键词 `{keyword}` 检索到 {_total_of(found.content)} 处命中"
+            search_note = f"按关键词 {keyword} 检索到 {_total_of(found.content)} 处命中"
 
         paths = _paths_of(globbed.content)
         files = [path for path in paths if not path.endswith("/")]
@@ -113,12 +113,12 @@ class _StubAgent:
             yield request
             yield result
             if "已跳过二进制文件" not in str(result.content):
-                read_note = f"读取了 `{candidate}`"
+                read_note = f"读取了 {candidate}"
                 break
 
         yield AIMessage(
             content=(
-                f"【无模型模式】已完成一次链路演练，**没有使用任何大模型**。\n\n"
+                f"【无模型模式】已完成一次链路演练，没有使用任何大模型。\n\n"
                 f"- 任务：{_task_line(task)}\n"
                 f"- 方向性文档：{_doc_note(task)}\n"
                 f"- 步骤：list_dir → glob → search → read，全部是真实工具调用\n"
@@ -155,7 +155,7 @@ def _total_of(raw: Any) -> int:
     return int(payload.get("total_matched", 0)) if isinstance(payload, dict) else 0
 
 
-_BACKTICKED = re.compile(r"`([^`\n]{2,64})`")
+_BACKTICKED = re.compile(r"([^\n]{2,64})`")
 _IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]{3,}")
 _CJK_RUN = re.compile(r"[\u4e00-\u9fff]{2,}")
 
@@ -168,7 +168,7 @@ def _keyword(task: str) -> str | None:
 
     优先级：任务里反引号显式标注的标识符 → 形似代码标识符的 ASCII 词 → 短中文词。
 
-    刻意**避开一整句中文** —— 拿它当正则几乎必然 0 命中，界面上看起来就像功能坏了。
+    刻意避开一整句中文 —— 拿它当正则几乎必然 0 命中，界面上看起来就像功能坏了。
     只取标识符字符与中文，因此无需转义，不会因任务文本里的特殊字符炸掉正则。
     """
     for raw in _BACKTICKED.findall(task):
@@ -198,7 +198,7 @@ def _doc_note(raw: str) -> str:
     if prefix not in raw:
         return "本工作区未提供（AGENTS.md / CLAUDE.md / README.md 均不存在）"
     source = raw.split(prefix, 1)[1].split("）", 1)[0]
-    return f"已载入 `{source}`"
+    return f"已载入 {source}"
 
 
 def build_stub_graph(*, settings: Settings, workspace: Workspace) -> CompiledStateGraph:

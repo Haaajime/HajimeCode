@@ -1,6 +1,6 @@
 """任务执行器：在 worker 线程里消费图的 stream，翻译事件并发布。
 
-runner 持有"累计状态"（预算、最终 plan/todos/summary），``events.translate`` 只做纯映射。
+runner 持有"累计状态"（预算、最终 plan/todos/summary），events.translate 只做纯映射。
 """
 
 from __future__ import annotations
@@ -20,9 +20,9 @@ from .stub import STUB_MODEL_ID
 
 STREAM_MODES = ["updates", "messages", "debug"]
 
-# runner 只依赖 `.stream(...)` 这一个鸭子接口。LangGraph 的 CompiledStateGraph.stream
+# runner 只依赖 .stream(...) 这一个鸭子接口。LangGraph 的 CompiledStateGraph.stream
 # 是重载 + 大量关键字参数，写成 Protocol 反而无法被满足，因此这里用 Any 做鸭子类型。
-# 第二个参数是模型名：``None`` 表示用服务端默认；``"stub"`` 表示无模型模式。
+# 第二个参数是模型名：None 表示用服务端默认；"stub" 表示无模型模式。
 GraphFactory = Callable[[Path, str | None], Any]
 
 
@@ -53,7 +53,7 @@ def run_task(
     settings: Settings,
     model: str | None = None,
 ) -> None:
-    """阻塞执行；由调用方放进 worker 线程（``asyncio.to_thread``）。"""
+    """阻塞执行；由调用方放进 worker 线程（asyncio.to_thread）。"""
     bus.publish(task_id, "task.created", {"task": task, "workspace": str(workspace)})
     state: dict[str, Any] = {}
     budget = empty_budget()
