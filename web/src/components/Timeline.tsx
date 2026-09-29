@@ -76,9 +76,9 @@ function toRow(event: TaskEvent): TimelineItem {
 /**
  * 把事件流折叠成可渲染的时间线。
  *
- * - 连续且同节点的 `llm.token` 合并成一条会持续增长的流式文本；
- * - `budget.updated` 只更新顶部指标，不进时间线；
- * - 某节点若有 token 流，则它随后的 `assistant.message`（同一份内容的完整版）不再重复展示。
+ * - 连续且同节点的 llm.token 合并成一条会持续增长的流式文本；
+ * - budget.updated 只更新顶部指标，不进时间线；
+ * - 某节点若有 token 流，则它随后的 assistant.message（同一份内容的完整版）不再重复展示。
  */
 export function groupEvents(events: TaskEvent[]): TimelineItem[] {
   const streamedNodes = new Set<string>()

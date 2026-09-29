@@ -12,7 +12,7 @@ interface Props {
 /**
  * 工作目录选择器：既可直接填路径，也可在服务端限定的范围内逐层浏览。
  *
- * 浏览范围由服务端 `browse_root` 约束 —— 越界会被后端拒绝，前端不做安全判断。
+ * 浏览范围由服务端 browse_root 约束 —— 越界会被后端拒绝，前端不做安全判断。
  */
 export function WorkspacePicker({ value, presets, onChange }: Props) {
   const [open, setOpen] = useState(false)

@@ -23,10 +23,10 @@ export function TaskForm({ onSubmit, disabled, models, defaultModel, hasApiKey, 
   const [task, setTask] = useState('')
   const [workspace, setWorkspace] = useState('')
 
-  // ⚠️ 不能写成 `useState(defaultModel)`。
-  // `defaultModel` 首次渲染时还是空串（模型列表是异步到达的），那样 React 状态会**永远停在空串**；
+  // ⚠️ 不能写成 useState(defaultModel)。
+  // defaultModel 首次渲染时还是空串（模型列表是异步到达的），那样 React 状态会永远停在空串；
   // 而浏览器会把第一个 <option> 显示成"已选中" —— 于是界面显示「无模型模式」，
-  // 实际提交却因 model 为空而被前端省略、服务端回退到默认模型，**产生真实费用**。
+  // 实际提交却因 model 为空而被前端省略、服务端回退到默认模型，产生真实费用。
   // 这正是用户遇到的「无模型模式跑出 ¥0.0175」。
   const [model, setModel] = useState('')
   const userPicked = useRef(false)
@@ -39,7 +39,7 @@ export function TaskForm({ onSubmit, disabled, models, defaultModel, hasApiKey, 
   }, [defaultModel, models])
 
   const selected = models.find((item) => item.id === model)
-  // 没有有效选择就**不许提交** —— 这是"静默跑错模型"的最后一道闸
+  // 没有有效选择就不许提交 —— 这是"静默跑错模型"的最后一道闸
   const blockReason =
     models.length === 0
       ? '模型列表尚未就绪'

@@ -1,10 +1,10 @@
-/** 后端契约。字段与 `src/hajime2code/serve/events.py` / `store.py` 保持一致。 */
+/** 后端契约。字段与 src/hajime2code/serve/events.py / store.py 保持一致。 */
 
 /**
- * 前端依赖的后端接口版本。必须与 `serve/app.py` 的 `API_VERSION` 对齐。
+ * 前端依赖的后端接口版本。必须与 serve/app.py 的 API_VERSION 对齐。
  *
- * 为什么要有这道握手：静态托管是**每次请求都从磁盘读文件**的，所以一个**旧的**服务进程
- * 照样会把**新的**前端发出去，于是表现成"模型下拉空白 + 浏览 404"这种莫名其妙的症状。
+ * 为什么要有这道握手：静态托管是每次请求都从磁盘读文件的，所以一个旧的服务进程
+ * 照样会把新的前端发出去，于是表现成"模型下拉空白 + 浏览 404"这种莫名其妙的症状。
  * 有这个版本号，前端就能明确说出"服务端过旧，请重启"。
  */
 export const REQUIRED_API_VERSION = 2
@@ -129,7 +129,7 @@ export async function createTask(
   workspace?: string,
   model?: string,
 ): Promise<string> {
-  // 绝不静默省略 model：服务端会回退到默认模型并**产生真实费用**，
+  // 绝不静默省略 model：服务端会回退到默认模型并产生真实费用，
   // 而界面可能显示的是「无模型模式」。这种"说一套做一套"比直接报错糟糕得多。
   // （真实事故：下拉框只显示了第一个选项、state 却是空串，于是显示无模型模式却跑了真实模型。）
   if (!model) {
